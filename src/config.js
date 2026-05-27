@@ -4,6 +4,7 @@ const args = parseArgs();
 const query = args.query ?? null;
 const limitRaw = args.limit ?? null;
 const limit = limitRaw == null ? null : Number.parseInt(String(limitRaw), 10);
+const jsonFile = args.file ?? null;
 
 export const config = {
   /** Страница входа VK */
@@ -14,6 +15,9 @@ export const config = {
 
   /** Сколько групп парсить из списка */
   limit: Number.isFinite(limit) && limit > 0 ? limit : null,
+
+  /** Путь к JSON для скрипта openMessages */
+  jsonFile,
 
   /** false — видимый браузер, true — headless */
   headless: process.env.HEADLESS === 'true',

@@ -8,6 +8,7 @@ function printCommunityInfo(data) {
   console.log('Название:', data.name ?? '—');
   console.log('Телефон:', data.phone ?? '—');
   console.log('Сайт:', data.site ?? '—');
+  console.log('Сообщение:', data.msgUrl ?? '—');
 
   if (data.contacts.length === 0) {
     console.log('Контакты пользователей: нет');
@@ -54,6 +55,12 @@ export async function parseCommunityPage(page) {
       const siteLink = siteElement.querySelector('a[href]');
       site = siteLink?.href || siteLink?.getAttribute('href') || cleanText(siteElement.textContent);
     }
+
+    const msgLink = document.querySelector(
+      'a[data-testid="group_action_send_message"][href], a[aria-label="Написать сообщение"][href*="/im/convo/"]',
+    );
+    const msgPath = msgLink?.getAttribute('href') ?? null;
+    const msgUrl = msgPath ? new URL(msgPath, location.origin).href : null;
 
     const isProfileHref = (href) => {
       if (!href) return false;
@@ -171,6 +178,7 @@ export async function parseCommunityPage(page) {
       name,
       phone,
       site,
+      msgUrl,
       contacts,
     };
   });

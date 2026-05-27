@@ -19,6 +19,7 @@ function buildCommunityPayload(data) {
     name: data.name,
     phone: data.phone,
     site: data.site,
+    msgUrl: data.msgUrl ?? null,
     contacts: data.contacts.map((contact) => ({
       fullName: contact.fullName,
       profileUrl: contact.profileUrl,

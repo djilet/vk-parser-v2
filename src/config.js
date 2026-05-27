@@ -1,7 +1,9 @@
 import { parseArgs } from './utils/args.js';
 
 const args = parseArgs();
-const query = args.query ?? args.q ?? process.env.QUERY ?? null;
+const query = args.query ?? null;
+const limitRaw = args.limit ?? null;
+const limit = limitRaw == null ? null : Number.parseInt(String(limitRaw), 10);
 
 export const config = {
   /** Страница входа VK */
@@ -9,6 +11,9 @@ export const config = {
 
   /** Поисковый запрос для сообществ */
   query,
+
+  /** Сколько групп парсить из списка */
+  limit: Number.isFinite(limit) && limit > 0 ? limit : null,
 
   /** false — видимый браузер, true — headless */
   headless: process.env.HEADLESS === 'true',

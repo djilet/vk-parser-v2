@@ -13,9 +13,8 @@ function buildOutputPath() {
   return resolve('output', fileName);
 }
 
-function buildCommunityPayload(data, searchQuery) {
+function buildCommunityPayload(data) {
   return {
-    searchQuery,
     url: data.url,
     name: data.name,
     phone: data.phone,
@@ -30,12 +29,21 @@ function buildCommunityPayload(data, searchQuery) {
   };
 }
 
-export async function saveCommunityToJson(data, searchQuery) {
-  const payload = buildCommunityPayload(data, searchQuery);
+export function createResultsJsonWriter(searchQuery) {
   const filePath = buildOutputPath();
 
-  await mkdir(dirname(filePath), { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+  async function save(communities) {
+    const payload = {
+      searchQuery,
+      count: communities.length,
+      communities: communities.map(buildCommunityPayload),
+    };
 
-  return filePath;
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+
+    return filePath;
+  }
+
+  return { filePath, save };
 }

@@ -4,6 +4,11 @@ import { config } from './config.js';
 import { launchBrowser } from './browser.js';
 import { loadCommunitiesFromJson } from './import/fromJson.js';
 import { sendCommunityMessage } from './steps/sendMessage.js';
+import {
+  appendSentMsgUrl,
+  isAlreadySent,
+  loadSentLog,
+} from './storage/sentLog.js';
 import { waitForEnter } from './utils/prompt.js';
 
 const MESSAGE_TEMPLATE_PATH = resolve('msg_template.txt');
@@ -31,17 +36,25 @@ async function main() {
 
   const messageText = await loadMessageTemplate();
   const { communities, filePath, searchQuery } = await loadCommunitiesFromJson(config.jsonFile.trim());
+  const sentLog = await loadSentLog();
   const withMsgUrl = communities.filter((community) => community.msgUrl != null);
+  const pending = withMsgUrl.filter((community) => !isAlreadySent(sentLog, community));
+  const skipped = withMsgUrl.length - pending.length;
 
   console.log(`JSON: ${filePath}`);
   console.log(`Шаблон: ${MESSAGE_TEMPLATE_PATH}`);
+  console.log(`Журнал отправок: sent.json (${sentLog.length})`);
   if (searchQuery) {
     console.log(`Запрос: ${searchQuery}`);
   }
-  console.log(`Сообществ: ${communities.length}, с msgUrl: ${withMsgUrl.length}`);
+  console.log(`Сообществ: ${communities.length}, с msgUrl: ${withMsgUrl.length}, к отправке: ${pending.length}`);
 
-  if (withMsgUrl.length === 0) {
-    console.log('Нет сообществ с msgUrl. Завершаю работу.');
+  if (skipped > 0) {
+    console.log(`Пропущено (уже отправлено): ${skipped}`);
+  }
+
+  if (pending.length === 0) {
+    console.log('Нет новых сообществ для отправки. Завершаю работу.');
     return;
   }
 
@@ -58,11 +71,11 @@ async function main() {
   console.log('\nВойдите в аккаунт VK в браузере.');
   await waitForEnter('Когда войдёте — нажмите Enter в этой консоли...\n');
 
-  for (let index = 0; index < withMsgUrl.length; index += 1) {
-    const community = withMsgUrl[index];
+  for (let index = 0; index < pending.length; index += 1) {
+    const community = pending[index];
     const label = community.name ?? community.url ?? community.msgUrl;
 
-    console.log(`\n=== ${index + 1} из ${withMsgUrl.length}: ${label} ===`);
+    console.log(`\n=== ${index + 1} из ${pending.length}: ${label} ===`);
     console.log(`Открываю: ${community.msgUrl}`);
 
     await page.goto(community.msgUrl, {
@@ -71,6 +84,9 @@ async function main() {
     });
 
     await sendCommunityMessage(page, messageText);
+
+    const savedPath = await appendSentMsgUrl(community.msgUrl, sentLog);
+    console.log(`Журнал обновлён: ${savedPath} (${sentLog.length})`);
   }
 
   console.log('\nГотово. Браузер остаётся открытым — закройте его или нажмите Ctrl+C.');

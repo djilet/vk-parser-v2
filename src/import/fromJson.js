@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { normalizeCommunity } from '../utils/communityFields.js';
 
 export async function loadCommunitiesFromJson(filePath) {
   const absolutePath = resolve(filePath);
@@ -11,8 +12,8 @@ export async function loadCommunitiesFromJson(filePath) {
   }
 
   return {
-    searchQuery: data.searchQuery ?? null,
-    filePath: absolutePath,
-    communities: data.communities,
+    search_query: data.search_query ?? data.searchQuery ?? null,
+    file_path: absolutePath,
+    communities: data.communities.map(normalizeCommunity),
   };
 }

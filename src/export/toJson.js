@@ -19,10 +19,11 @@ function buildCommunityPayload(data) {
     name: data.name,
     phone: data.phone,
     site: data.site,
-    msgUrl: data.msgUrl ?? null,
+    msg_url: data.msg_url ?? null,
+    last_post_date: data.last_post_date ?? null,
     contacts: data.contacts.map((contact) => ({
-      fullName: contact.fullName,
-      profileUrl: contact.profileUrl,
+      full_name: contact.full_name,
+      profile_url: contact.profile_url,
       description: contact.description,
       phone: contact.phone,
       email: contact.email,
@@ -35,7 +36,7 @@ export function createResultsJsonWriter(searchQuery) {
 
   async function save(communities) {
     const payload = {
-      searchQuery,
+      search_query: searchQuery,
       count: communities.length,
       communities: communities.map(buildCommunityPayload),
     };

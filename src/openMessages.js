@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { launchBrowser } from './browser.js';
 import { loadCommunitiesFromJson } from './import/fromJson.js';
 import { sendCommunityMessage } from './steps/sendMessage.js';
+import { getCommunityMsgUrl } from './utils/communityFields.js';
 import {
   appendSentMsgUrl,
   isAlreadySent,
@@ -35,19 +36,19 @@ async function main() {
   ensureConfig();
 
   const messageText = await loadMessageTemplate();
-  const { communities, filePath, searchQuery } = await loadCommunitiesFromJson(config.jsonFile.trim());
+  const { communities, file_path, search_query } = await loadCommunitiesFromJson(config.jsonFile.trim());
   const sentLog = await loadSentLog();
-  const withMsgUrl = communities.filter((community) => community.msgUrl != null);
+  const withMsgUrl = communities.filter((community) => getCommunityMsgUrl(community) != null);
   const pending = withMsgUrl.filter((community) => !isAlreadySent(sentLog, community));
   const skipped = withMsgUrl.length - pending.length;
 
-  console.log(`JSON: ${filePath}`);
+  console.log(`JSON: ${file_path}`);
   console.log(`Шаблон: ${MESSAGE_TEMPLATE_PATH}`);
   console.log(`Журнал отправок: sent.json (${sentLog.length})`);
-  if (searchQuery) {
-    console.log(`Запрос: ${searchQuery}`);
+  if (search_query) {
+    console.log(`Запрос: ${search_query}`);
   }
-  console.log(`Сообществ: ${communities.length}, с msgUrl: ${withMsgUrl.length}, к отправке: ${pending.length}`);
+  console.log(`Сообществ: ${communities.length}, с msg_url: ${withMsgUrl.length}, к отправке: ${pending.length}`);
 
   if (skipped > 0) {
     console.log(`Пропущено (уже отправлено): ${skipped}`);
@@ -73,19 +74,20 @@ async function main() {
 
   for (let index = 0; index < pending.length; index += 1) {
     const community = pending[index];
-    const label = community.name ?? community.url ?? community.msgUrl;
+    const msgUrl = getCommunityMsgUrl(community);
+    const label = community.name ?? community.url ?? msgUrl;
 
     console.log(`\n=== ${index + 1} из ${pending.length}: ${label} ===`);
-    console.log(`Открываю: ${community.msgUrl}`);
+    console.log(`Открываю: ${msgUrl}`);
 
-    await page.goto(community.msgUrl, {
+    await page.goto(msgUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 60_000,
     });
 
     await sendCommunityMessage(page, messageText);
 
-    const savedPath = await appendSentMsgUrl(community.msgUrl, sentLog);
+    const savedPath = await appendSentMsgUrl(msgUrl, sentLog);
     console.log(`Журнал обновлён: ${savedPath} (${sentLog.length})`);
   }
 

@@ -1,12 +1,17 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { getCommunityMsgUrl } from '../utils/communityFields.js';
 
 const SENT_LOG_PATH = resolve('sent.json');
 
 function normalizeEntry(entry) {
   if (typeof entry === 'string') {
     return entry;
+  }
+
+  if (entry && typeof entry.msg_url === 'string') {
+    return entry.msg_url;
   }
 
   if (entry && typeof entry.msgUrl === 'string') {
@@ -40,7 +45,8 @@ export async function saveSentLog(msgUrls) {
 }
 
 export function isAlreadySent(msgUrls, community) {
-  return msgUrls.includes(community.msgUrl);
+  const msgUrl = getCommunityMsgUrl(community);
+  return msgUrl != null && msgUrls.includes(msgUrl);
 }
 
 export async function appendSentMsgUrl(msgUrl, msgUrls) {

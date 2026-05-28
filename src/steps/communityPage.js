@@ -1,4 +1,5 @@
 import { sleep } from '../utils/sleep.js';
+import { pickLatestPostDate } from '../utils/vkPostDate.js';
 
 const PAGE_LOAD_WAIT_MS = 5_000;
 
@@ -8,15 +9,16 @@ function printCommunityInfo(data) {
   console.log('Название:', data.name ?? '—');
   console.log('Телефон:', data.phone ?? '—');
   console.log('Сайт:', data.site ?? '—');
-  console.log('Сообщение:', data.msgUrl ?? '—');
+  console.log('Сообщение:', data.msg_url ?? '—');
+  console.log('Последний пост:', data.last_post_date ?? '—');
 
   if (data.contacts.length === 0) {
     console.log('Контакты пользователей: нет');
   } else {
     console.log(`Контакты пользователей (${data.contacts.length}):`);
     for (const [index, contact] of data.contacts.entries()) {
-      console.log(`  [${index + 1}] ${contact.fullName ?? '—'}`);
-      console.log(`      Профиль: ${contact.profileUrl}`);
+      console.log(`  [${index + 1}] ${contact.full_name ?? '—'}`);
+      console.log(`      Профиль: ${contact.profile_url}`);
       console.log(`      Описание: ${contact.description ?? '—'}`);
       console.log(`      Телефон: ${contact.phone ?? '—'}`);
       console.log(`      Email: ${contact.email ?? '—'}`);
@@ -60,7 +62,15 @@ export async function parseCommunityPage(page) {
       'a[data-testid="group_action_send_message"][href], a[aria-label="Написать сообщение"][href*="/im/convo/"]',
     );
     const msgPath = msgLink?.getAttribute('href') ?? null;
-    const msgUrl = msgPath ? new URL(msgPath, location.origin).href : null;
+    const msg_url = msgPath ? new URL(msgPath, location.origin).href : null;
+
+    const postDateTexts = [...document.querySelectorAll('[data-testid="post"]')]
+      .slice(0, 2)
+      .map((post) => {
+        const dateElement = post.querySelector('[data-testid="post_date_block_preview"]');
+        return cleanText(dateElement?.textContent);
+      })
+      .filter(Boolean);
 
     const isProfileHref = (href) => {
       if (!href) return false;
@@ -150,9 +160,9 @@ export async function parseCommunityPage(page) {
       );
 
       return {
-        profilePath,
-        profileUrl: new URL(profilePath, location.origin).href,
-        fullName,
+        profile_path: profilePath,
+        profile_url: new URL(profilePath, location.origin).href,
+        full_name: fullName,
         description,
         phone: contactPhone,
         email,
@@ -166,9 +176,9 @@ export async function parseCommunityPage(page) {
     if (contactsContainer) {
       for (const cell of contactsContainer.querySelectorAll('a.vkuiSimpleCell__host[href]')) {
         const contact = parseContactCell(cell);
-        if (!contact || seenProfiles.has(contact.profilePath)) continue;
+        if (!contact || seenProfiles.has(contact.profile_path)) continue;
 
-        seenProfiles.add(contact.profilePath);
+        seenProfiles.add(contact.profile_path);
         contacts.push(contact);
       }
     }
@@ -178,11 +188,25 @@ export async function parseCommunityPage(page) {
       name,
       phone,
       site,
-      msgUrl,
+      msg_url,
+      post_date_texts: postDateTexts,
       contacts,
     };
   });
 
-  printCommunityInfo(data);
-  return data;
+  const scrapedAt = new Date();
+  const last_post_date = pickLatestPostDate(data.post_date_texts ?? [], scrapedAt);
+
+  const community = {
+    url: data.url,
+    name: data.name,
+    phone: data.phone,
+    site: data.site,
+    msg_url: data.msg_url,
+    last_post_date,
+    contacts: data.contacts,
+  };
+
+  printCommunityInfo(community);
+  return community;
 }

@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "messages": "node src/openMessages.js"
+    "messages": "node src/openMessages.js",
+    "import": "node src/importJson.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "dotenv": "^16.5.0",
     "puppeteer": "^24.10.0"
   }
 }

@@ -1,4 +1,7 @@
+import { config as loadEnv } from 'dotenv';
 import { parseArgs } from './utils/args.js';
+
+loadEnv();
 
 const args = parseArgs();
 const query = args.query ?? null;
@@ -30,4 +33,10 @@ export const config = {
 
   /** Профиль браузера (для сохранения сессии VK) */
   userDataDir: process.env.USER_DATA_DIR ?? './chrome-profile',
+
+  supabase: {
+    url: process.env.SUPABASE_URL ?? null,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? null,
+    schema: process.env.SUPABASE_SCHEMA ?? 'sales',
+  },
 };

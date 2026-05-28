@@ -10,7 +10,7 @@ import {
 } from './steps/communities.js';
 import { parseCommunityPage } from './steps/communityPage.js';
 import { waitForEnter } from './utils/prompt.js';
-import { createResultsJsonWriter } from './export/toJson.js';
+import { createSupabaseExporter, verifySupabase } from './export/toSupabase.js';
 
 function ensureConfig() {
   const example = 'npm start -- --query "Футбольные турниры" --limit 3';
@@ -28,6 +28,8 @@ function ensureConfig() {
 
 async function main() {
   ensureConfig();
+  await verifySupabase();
+  console.log('Supabase: подключение проверено');
 
   const browser = await launchBrowser();
   const pages = await browser.pages();
@@ -54,9 +56,9 @@ async function main() {
 
   console.log(`Запланировано групп: ${config.limit}`);
 
-  const communities = [];
-  const jsonWriter = createResultsJsonWriter(config.query.trim());
-  let savedPath = null;
+  const searchQuery = config.query.trim();
+  const supabaseExporter = createSupabaseExporter(searchQuery);
+  let processedCount = 0;
 
   for (let index = 0; index < config.limit; index += 1) {
     const availableResults = await ensureResultsLoaded(page, index + 1);
@@ -64,7 +66,7 @@ async function main() {
     if (!availableResults.found || index >= availableResults.count) {
       console.log(
         `\nВ списке ${availableResults.count} сообществ, запланировано ${config.limit}. `
-        + `Обработано ${communities.length}. Завершаю парсинг.`,
+        + `Обработано ${processedCount}. Завершаю парсинг.`,
       );
       break;
     }
@@ -72,22 +74,24 @@ async function main() {
     console.log(`\n=== Сообщество ${index + 1} из ${config.limit} ===`);
 
     await clickCommunityByIndex(page, index);
-    communities.push(await parseCommunityPage(page));
-    savedPath = await jsonWriter.save(communities);
-    console.log(`JSON обновлён: ${savedPath} (${communities.length})`);
+    const community = await parseCommunityPage(page);
+
+    const communityId = await supabaseExporter.saveCommunity(community);
+    processedCount += 1;
+    console.log(`Supabase: сохранено community_id=${communityId} (${processedCount})`);
 
     if (index < config.limit - 1) {
       await goBackToSearchResults(page);
     }
   }
 
-  if (communities.length === 0) {
+  if (processedCount === 0) {
     console.log('\nНет данных для сохранения. Завершаю работу.');
     return;
   }
 
-  console.log(`\nИтоговый JSON: ${savedPath}`);
-  console.log('\nГотово. Браузер остаётся открытым — закройте его или нажмите Ctrl+C.');
+  console.log(`\nГотово. Сохранено в Supabase: ${processedCount}`);
+  console.log('\nБраузер остаётся открытым — закройте его или нажмите Ctrl+C.');
   await new Promise(() => {});
 }
 

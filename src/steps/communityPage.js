@@ -1,4 +1,5 @@
 import { sleep } from '../utils/sleep.js';
+import { parsePeerIdFromMsgUrl } from '../utils/peerId.js';
 import { pickLatestPostDate } from '../utils/vkPostDate.js';
 
 const PAGE_LOAD_WAIT_MS = 5_000;
@@ -10,6 +11,7 @@ function printCommunityInfo(data) {
   console.log('Телефон:', data.phone ?? '—');
   console.log('Сайт:', data.site ?? '—');
   console.log('Сообщение:', data.msg_url ?? '—');
+  console.log('peer_id:', data.peer_id ?? '—');
   console.log('Последний пост:', data.last_post_date ?? '—');
 
   if (data.contacts.length === 0) {
@@ -203,6 +205,7 @@ export async function parseCommunityPage(page) {
     phone: data.phone,
     site: data.site,
     msg_url: data.msg_url,
+    peer_id: parsePeerIdFromMsgUrl(data.msg_url),
     last_post_date,
     contacts: data.contacts,
   };

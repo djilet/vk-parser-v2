@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { parsePeerIdFromMsgUrl } from '../utils/peerId.js';
 
 function buildOutputPath() {
   const now = new Date();
@@ -20,6 +21,7 @@ function buildCommunityPayload(data) {
     phone: data.phone,
     site: data.site,
     msg_url: data.msg_url ?? null,
+    peer_id: data.peer_id ?? parsePeerIdFromMsgUrl(data.msg_url) ?? null,
     last_post_date: data.last_post_date ?? null,
     contacts: data.contacts.map((contact) => ({
       full_name: contact.full_name,

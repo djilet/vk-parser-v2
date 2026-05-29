@@ -1,8 +1,8 @@
-create table sales.community_contacts (
+create table public.community_contacts (
   id bigint generated always as identity primary key,
 
   community_id bigint not null
-    references sales.communities (id)
+    references public.communities (id)
     on delete cascade,
 
   full_name text,
@@ -23,21 +23,21 @@ create table sales.community_contacts (
 );
 
 create index community_contacts_community_id_idx
-  on sales.community_contacts (community_id);
+  on public.community_contacts (community_id);
 
 create index community_contacts_active_idx
-  on sales.community_contacts (community_id, is_active)
+  on public.community_contacts (community_id, is_active)
   where is_active = true;
 
 create index community_contacts_email_idx
-  on sales.community_contacts (email)
+  on public.community_contacts (email)
   where email is not null;
 
 create index community_contacts_phone_idx
-  on sales.community_contacts (phone)
+  on public.community_contacts (phone)
   where phone is not null;
 
 create trigger community_contacts_set_updated_at
-  before update on sales.community_contacts
+  before update on public.community_contacts
   for each row
-  execute function sales.set_updated_at();
+  execute function public.set_updated_at();

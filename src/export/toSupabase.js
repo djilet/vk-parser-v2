@@ -45,8 +45,8 @@ export async function verifySupabase() {
 
   if (rpcError.message.includes('Could not find the function')) {
     throw new Error(
-      'Supabase: функция upsert_community_bundle не найдена. '
-      + 'Примените миграции из supabase/migrations/ (включая 20260528120005_create_public_upsert_wrapper.sql).',
+      `Supabase: функция public.upsert_community_bundle не найдена в schema "${schema}". `
+      + 'Примените миграции из supabase/migrations/.',
     );
   }
 

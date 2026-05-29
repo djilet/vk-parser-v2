@@ -1,4 +1,4 @@
-create or replace function sales.upsert_community_bundle(
+create or replace function public.upsert_community_bundle(
   p_search_query text,
   p_community jsonb,
   p_contacts jsonb default '[]'::jsonb
@@ -15,7 +15,7 @@ begin
     raise exception 'community url is required';
   end if;
 
-  insert into sales.communities (
+  insert into public.communities (
     url, name, phone, site, msg_url, peer_id, last_post_date
   )
   values (
@@ -44,7 +44,7 @@ begin
   returning id into v_community_id;
 
   if p_search_query is not null and char_length(trim(p_search_query)) > 0 then
-    insert into sales.community_search_queries (community_id, search_query)
+    insert into public.community_search_queries (community_id, search_query)
     values (v_community_id, trim(p_search_query))
     on conflict (community_id, search_query) do update set
       last_seen_at = now();
@@ -57,7 +57,7 @@ begin
     and char_length(trim(elem->>'profile_url')) > 0;
 
   if coalesce(array_length(v_profile_urls, 1), 0) = 0 then
-    update sales.community_contacts
+    update public.community_contacts
     set
       is_active = false,
       deactivated_at = now(),
@@ -65,7 +65,7 @@ begin
     where community_id = v_community_id
       and is_active = true;
   else
-    update sales.community_contacts
+    update public.community_contacts
     set
       is_active = false,
       deactivated_at = now(),
@@ -81,7 +81,7 @@ begin
     where elem->>'profile_url' is not null
       and char_length(trim(elem->>'profile_url')) > 0
   loop
-    insert into sales.community_contacts (
+    insert into public.community_contacts (
       community_id,
       full_name,
       profile_url,

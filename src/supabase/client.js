@@ -19,6 +19,9 @@ export function getSupabaseClient() {
 
   if (!client) {
     client = createClient(config.supabase.url, config.supabase.serviceRoleKey, {
+      db: {
+        schema: getSupabaseSchema(),
+      },
       auth: {
         autoRefreshToken: false,
         persistSession: false,

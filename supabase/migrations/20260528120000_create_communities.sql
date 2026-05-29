@@ -1,20 +1,4 @@
-create schema if not exists sales;
-
-grant usage on schema sales to postgres, anon, authenticated, service_role;
-grant all on all tables in schema sales to postgres, service_role;
-grant all on all sequences in schema sales to postgres, service_role;
-grant all on all routines in schema sales to postgres, service_role;
-
-alter default privileges in schema sales
-  grant all on tables to postgres, service_role;
-
-alter default privileges in schema sales
-  grant all on sequences to postgres, service_role;
-
-alter default privileges in schema sales
-  grant all on routines to postgres, service_role;
-
-create or replace function sales.set_updated_at()
+create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
 as $$
@@ -24,7 +8,7 @@ begin
 end;
 $$;
 
-create table sales.communities (
+create table public.communities (
   id bigint generated always as identity primary key,
 
   url text not null,
@@ -47,13 +31,13 @@ create table sales.communities (
 );
 
 create index communities_last_post_date_idx
-  on sales.communities (last_post_date desc nulls last);
+  on public.communities (last_post_date desc nulls last);
 
 create index communities_peer_id_idx
-  on sales.communities (peer_id)
+  on public.communities (peer_id)
   where peer_id is not null;
 
 create trigger communities_set_updated_at
-  before update on sales.communities
+  before update on public.communities
   for each row
-  execute function sales.set_updated_at();
+  execute function public.set_updated_at();

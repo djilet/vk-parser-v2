@@ -1,6 +1,6 @@
-create table sales.community_search_queries (
+create table public.community_search_queries (
   community_id bigint not null
-    references sales.communities (id)
+    references public.communities (id)
     on delete cascade,
 
   search_query text not null,
@@ -15,7 +15,7 @@ create table sales.community_search_queries (
 );
 
 create index community_search_queries_search_query_idx
-  on sales.community_search_queries (search_query);
+  on public.community_search_queries (search_query);
 
 create index community_search_queries_last_seen_at_idx
-  on sales.community_search_queries (last_seen_at desc);
+  on public.community_search_queries (last_seen_at desc);

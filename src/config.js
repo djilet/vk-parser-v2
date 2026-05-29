@@ -37,6 +37,6 @@ export const config = {
   supabase: {
     url: process.env.SUPABASE_URL ?? null,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? null,
-    schema: process.env.SUPABASE_SCHEMA ?? 'sales',
+    schema: process.env.SUPABASE_SCHEMA ?? 'public',
   },
 };

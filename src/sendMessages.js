@@ -1,5 +1,6 @@
 import { config } from './config.js';
 import { launchBrowser } from './browser.js';
+import { buildPersonalizedMessage, findGreetingContact, findLeaderContact } from './messaging/personalizeMessage.js';
 import { loadMessageTemplate, MESSAGE_TEMPLATE_PATH } from './messaging/messageTemplate.js';
 import { loadPendingCommunities } from './storage/pendingCommunities.js';
 import { markCommunityMessageSent } from './storage/sentMessages.js';
@@ -24,7 +25,7 @@ function ensureConfig() {
 async function main() {
   ensureConfig();
 
-  const messageText = await loadMessageTemplate();
+  const messageTemplate = await loadMessageTemplate();
   const pending = await loadPendingCommunities(config.limit);
 
   console.log(`Шаблон: ${MESSAGE_TEMPLATE_PATH}`);
@@ -53,8 +54,19 @@ async function main() {
     const community = pending[index];
     const label = community.name ?? community.url ?? community.msg_url;
 
+    const messageText = buildPersonalizedMessage(messageTemplate, community.contacts);
+    const leaderContact = findLeaderContact(community.contacts);
+    const greetingContact = findGreetingContact(community.contacts);
+
     console.log(`\n=== ${index + 1} из ${pending.length}: ${label} ===`);
     console.log(`Открываю: ${community.msg_url}`);
+    if (leaderContact) {
+      console.log(`Обращение: ${leaderContact.full_name} (${leaderContact.description})`);
+    } else if (greetingContact) {
+      console.log(`Обращение: ${greetingContact.full_name} (первый контакт в списке)`);
+    } else {
+      console.log('Обращение: без персонализации (контактов нет)');
+    }
 
     await page.goto(community.msg_url, {
       waitUntil: 'domcontentloaded',

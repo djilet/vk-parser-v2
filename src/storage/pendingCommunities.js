@@ -1,5 +1,32 @@
 import { getSupabaseClient } from '../supabase/client.js';
 
+async function loadContactsByCommunityIds(communityIds) {
+  if (communityIds.length === 0) {
+    return new Map();
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('community_contacts')
+    .select('community_id, full_name, description')
+    .in('community_id', communityIds)
+    .eq('is_active', true);
+
+  if (error) {
+    throw new Error(`Supabase: не удалось получить контакты сообществ — ${error.message}`);
+  }
+
+  const contactsByCommunityId = new Map();
+
+  for (const contact of data ?? []) {
+    const contacts = contactsByCommunityId.get(contact.community_id) ?? [];
+    contacts.push(contact);
+    contactsByCommunityId.set(contact.community_id, contacts);
+  }
+
+  return contactsByCommunityId;
+}
+
 export async function loadPendingCommunities(limit) {
   const supabase = getSupabaseClient();
   const batchSize = Math.max(limit * 5, limit);
@@ -43,5 +70,11 @@ export async function loadPendingCommunities(limit) {
     offset += batchSize;
   }
 
-  return pending.slice(0, limit);
+  const result = pending.slice(0, limit);
+  const contactsByCommunityId = await loadContactsByCommunityIds(result.map((community) => community.id));
+
+  return result.map((community) => ({
+    ...community,
+    contacts: contactsByCommunityId.get(community.id) ?? [],
+  }));
 }

@@ -5,7 +5,7 @@ loadEnv();
 
 const args = parseArgs();
 const query = args.query ?? null;
-const limitRaw = args.limit ?? null;
+const limitRaw = args.limit ?? args.count ?? null;
 const limit = limitRaw == null ? null : Number.parseInt(String(limitRaw), 10);
 const jsonFile = args.file ?? null;
 

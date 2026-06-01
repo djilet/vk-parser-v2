@@ -1,21 +1,22 @@
 import { config } from './config.js';
 import { launchBrowser } from './browser.js';
-import { loadCommunitiesFromJson } from './import/fromJson.js';
 import { loadMessageTemplate, MESSAGE_TEMPLATE_PATH } from './messaging/messageTemplate.js';
+import { loadPendingCommunities } from './storage/pendingCommunities.js';
+import { markCommunityMessageSent } from './storage/sentMessages.js';
 import { sendCommunityMessage } from './steps/sendMessage.js';
-import { getCommunityMsgUrl } from './utils/communityFields.js';
-import {
-  appendSentMsgUrl,
-  isAlreadySent,
-  loadSentLog,
-} from './storage/sentLog.js';
+import { isSupabaseConfigured } from './supabase/client.js';
 import { waitForEnter } from './utils/prompt.js';
 
 function ensureConfig() {
-  const example = 'npm run messages -- --file output/2026-05-27_16-02-32.json';
+  const example = 'npm run send-messages -- --limit 10';
 
-  if (!config.jsonFile?.trim()) {
-    console.error(`Укажите путь к JSON: ${example}`);
+  if (!config.limit) {
+    console.error(`Укажите количество сообществ: ${example}`);
+    process.exit(1);
+  }
+
+  if (!isSupabaseConfigured()) {
+    console.error('Supabase не настроен: задайте SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY в .env');
     process.exit(1);
   }
 }
@@ -24,23 +25,11 @@ async function main() {
   ensureConfig();
 
   const messageText = await loadMessageTemplate();
-  const { communities, file_path, search_query } = await loadCommunitiesFromJson(config.jsonFile.trim());
-  const sentLog = await loadSentLog();
-  const withMsgUrl = communities.filter((community) => getCommunityMsgUrl(community) != null);
-  const pending = withMsgUrl.filter((community) => !isAlreadySent(sentLog, community));
-  const skipped = withMsgUrl.length - pending.length;
+  const pending = await loadPendingCommunities(config.limit);
 
-  console.log(`JSON: ${file_path}`);
   console.log(`Шаблон: ${MESSAGE_TEMPLATE_PATH}`);
-  console.log(`Журнал отправок: sent.json (${sentLog.length})`);
-  if (search_query) {
-    console.log(`Запрос: ${search_query}`);
-  }
-  console.log(`Сообществ: ${communities.length}, с msg_url: ${withMsgUrl.length}, к отправке: ${pending.length}`);
-
-  if (skipped > 0) {
-    console.log(`Пропущено (уже отправлено): ${skipped}`);
-  }
+  console.log(`Запрошено сообществ: ${config.limit}`);
+  console.log(`Найдено к отправке: ${pending.length}`);
 
   if (pending.length === 0) {
     console.log('Нет новых сообществ для отправки. Завершаю работу.');
@@ -62,21 +51,20 @@ async function main() {
 
   for (let index = 0; index < pending.length; index += 1) {
     const community = pending[index];
-    const msgUrl = getCommunityMsgUrl(community);
-    const label = community.name ?? community.url ?? msgUrl;
+    const label = community.name ?? community.url ?? community.msg_url;
 
     console.log(`\n=== ${index + 1} из ${pending.length}: ${label} ===`);
-    console.log(`Открываю: ${msgUrl}`);
+    console.log(`Открываю: ${community.msg_url}`);
 
-    await page.goto(msgUrl, {
+    await page.goto(community.msg_url, {
       waitUntil: 'domcontentloaded',
       timeout: 60_000,
     });
 
     await sendCommunityMessage(page, messageText);
 
-    const savedPath = await appendSentMsgUrl(msgUrl, sentLog);
-    console.log(`Журнал обновлён: ${savedPath} (${sentLog.length})`);
+    const sentId = await markCommunityMessageSent(community);
+    console.log(`Отправка записана в БД: community_messages_sent.id=${sentId}`);
   }
 
   console.log('\nГотово. Браузер остаётся открытым — закройте его или нажмите Ctrl+C.');

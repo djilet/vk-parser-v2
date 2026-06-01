@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "messages": "node src/openMessages.js",
+    "send-messages": "node src/sendMessages.js",
     "import": "node src/importJson.js"
   },
   "dependencies": {

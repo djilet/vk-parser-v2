@@ -57,8 +57,8 @@ export async function sendCommunityMessage(page, messageText) {
   console.log(`Текст вставлен, курсор в конце. Жду ${BEFORE_SEND_MS / 1000}с перед отправкой...`);
   await sleep(BEFORE_SEND_MS);
 
-  const sendButton = await page.waitForSelector(SEND_BUTTON_SELECTOR, { timeout: 15_000 });
-  await sendButton.click();
+  // const sendButton = await page.waitForSelector(SEND_BUTTON_SELECTOR, { timeout: 15_000 });
+  // await sendButton.click();
 
   console.log(`Сообщение отправлено. Жду ${AFTER_SEND_MS / 1000}с...`);
   await sleep(AFTER_SEND_MS);

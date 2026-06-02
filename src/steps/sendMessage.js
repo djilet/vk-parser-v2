@@ -3,12 +3,15 @@ import { sleep } from '../utils/sleep.js';
 const INPUT_SELECTOR = 'span.ComposerInput__input[contenteditable="true"][role="textbox"]';
 const SEND_BUTTON_SELECTOR = 'button.ConvoComposer__sendButton--submit';
 const CHAT_LOAD_WAIT_MS = 5_000;
+const BEFORE_WRITE_MS = 180_000;
 const BEFORE_SEND_MS = 10_000;
-const AFTER_SEND_MS = 15_000;
 
 export async function sendCommunityMessage(page, messageText) {
   console.log(`Жду загрузку чата (${CHAT_LOAD_WAIT_MS / 1000}с)...`);
   await sleep(CHAT_LOAD_WAIT_MS);
+
+  console.log(`Чат открыт. Жду ${BEFORE_WRITE_MS / 1000}с перед вводом сообщения...`);
+  await sleep(BEFORE_WRITE_MS);
 
   await page.waitForSelector(INPUT_SELECTOR, { timeout: 60_000 });
   await page.click(INPUT_SELECTOR);
@@ -60,6 +63,5 @@ export async function sendCommunityMessage(page, messageText) {
   // const sendButton = await page.waitForSelector(SEND_BUTTON_SELECTOR, { timeout: 15_000 });
   // await sendButton.click();
 
-  console.log(`Сообщение отправлено. Жду ${AFTER_SEND_MS / 1000}с...`);
-  await sleep(AFTER_SEND_MS);
+  console.log('Сообщение отправлено.');
 }

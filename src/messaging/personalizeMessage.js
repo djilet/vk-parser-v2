@@ -43,9 +43,9 @@ export function buildPersonalizedMessage(template, contacts) {
   const contact = findGreetingContact(contacts);
   const firstName = extractFirstName(contact?.full_name);
 
-  if (!firstName) {
-    return template;
+  if (firstName) {
+    return template.replaceAll(':name', firstName);
   }
 
-  return `${firstName}, здравствуйте\n\n${template}`;
+  return template.replace('Приветствую, :name!', 'Приветствую!');
 }

@@ -49,7 +49,6 @@ export async function loadPendingCommunities(limit) {
       .select('id, url, name, phone, site, msg_url, peer_id, last_post_date')
       .not('msg_url', 'is', null)
       .not('peer_id', 'is', null)
-      .order('last_post_date', { ascending: false, nullsFirst: false })
       .order('id', { ascending: true })
       .range(offset, offset + batchSize - 1);
 

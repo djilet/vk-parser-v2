@@ -7,6 +7,7 @@
     "start": "node src/index.js",
     "messages": "node src/openMessages.js",
     "send-messages": "node src/sendMessages.js",
+    "send-messages-parity": "node src/sendMessagesParity.js",
     "import": "node src/importJson.js"
   },
   "dependencies": {

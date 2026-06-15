@@ -8,6 +8,7 @@
     "messages": "node src/openMessages.js",
     "send-messages": "node src/sendMessages.js",
     "send-messages-parity": "node src/sendMessagesParity.js",
+    "slack-stats": "node src/sendSlackStats.js",
     "import": "node src/importJson.js"
   },
   "dependencies": {

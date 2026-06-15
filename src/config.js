@@ -39,4 +39,12 @@ export const config = {
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? null,
     schema: process.env.SUPABASE_SCHEMA ?? 'public',
   },
+
+  slack: {
+    webhookUrl: process.env.SLACK_WEBHOOK_URL ?? null,
+  },
+
+  stats: {
+    timezone: process.env.STATS_TIMEZONE ?? 'Europe/Moscow',
+  },
 };

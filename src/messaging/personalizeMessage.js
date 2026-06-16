@@ -47,5 +47,5 @@ export function buildPersonalizedMessage(template, contacts) {
     return template.replaceAll(':name', firstName);
   }
 
-  return template.replace('Приветствую, :name!', 'Приветствую!');
+  return template.replace('Приветствую :name!', 'Приветствую!');
 }

@@ -18,6 +18,20 @@ export async function countMessagesSentToday(timeZone) {
   return count ?? 0;
 }
 
+export async function countMessagesSentTotal() {
+  const supabase = getSupabaseClient();
+
+  const { count, error } = await supabase
+    .from('community_messages_sent')
+    .select('*', { count: 'exact', head: true });
+
+  if (error) {
+    throw new Error(`Supabase: не удалось посчитать все отправки — ${error.message}`);
+  }
+
+  return count ?? 0;
+}
+
 export async function countCommunities() {
   const supabase = getSupabaseClient();
 

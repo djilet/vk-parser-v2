@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { sendSlackMessage } from './slack/sendMessage.js';
-import { countCommunities, countMessagesSentToday } from './storage/stats.js';
+import { countCommunities, countMessagesSentToday, countMessagesSentTotal } from './storage/stats.js';
 import { isSupabaseConfigured } from './supabase/client.js';
 
 function ensureConfig() {
@@ -15,24 +15,36 @@ function ensureConfig() {
   }
 }
 
-function buildStatsMessage(sentToday, totalCommunities) {
-  return `Сегодня отправили *${sentToday}*\nВсего сообществ в базе *${totalCommunities}*`;
+function formatSentPercent(sentTotal, totalCommunities) {
+  if (totalCommunities === 0) {
+    return '0.0%';
+  }
+
+  const percent = (sentTotal / totalCommunities) * 100;
+  return `${percent.toFixed(1)}%`;
+}
+
+function buildStatsMessage(sentToday, sentTotal, sentPercent, totalCommunities) {
+  return `Сегодня отправили *${sentToday}*\nВсего отправлено *${sentTotal}* / *${sentPercent}*\nВсего сообществ в базе *${totalCommunities}*`;
 }
 
 async function main() {
   ensureConfig();
 
-  const [sentToday, totalCommunities] = await Promise.all([
+  const [sentToday, sentTotal, totalCommunities] = await Promise.all([
     countMessagesSentToday(config.stats.timezone),
+    countMessagesSentTotal(),
     countCommunities(),
   ]);
 
-  const message = buildStatsMessage(sentToday, totalCommunities);
+  const sentPercent = formatSentPercent(sentTotal, totalCommunities);
+  const message = buildStatsMessage(sentToday, sentTotal, sentPercent, totalCommunities);
 
   await sendSlackMessage(config.slack.webhookUrl, message);
 
   console.log('Отправлено в Slack:');
   console.log(`  Сегодня отправили: ${sentToday}`);
+  console.log(`  Всего отправлено: ${sentTotal} / ${sentPercent}`);
   console.log(`  Всего сообществ в базе: ${totalCommunities}`);
 }
 

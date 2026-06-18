@@ -1,0 +1,23 @@
+{
+  "name": "vk-chat-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "vk-token": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "vk:session": "tsx src/cli.ts session",
+    "vk:token": "tsx src/cli.ts token"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "puppeteer": "^24.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,5 +1,6 @@
 node_modules/
 dist/
+tokens/
 .browser-profile/
 .browser-profile-*/
 .vk-token.json

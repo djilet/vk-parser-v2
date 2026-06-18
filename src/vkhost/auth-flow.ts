@@ -1,5 +1,5 @@
 import type { Browser, Frame, Page } from 'puppeteer';
-import { extractTokenFromUrl } from '../token/storage.js';
+import { extractTokenFromUrl } from '../token/store.js';
 
 export const VK_COM_APP_ID = 6287487;
 

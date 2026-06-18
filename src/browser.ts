@@ -1,6 +1,7 @@
 import puppeteer, { type Browser, type Page } from 'puppeteer';
 import { VKHOST_URL, type BrowserPaths } from './config.js';
-import { extractTokenFromUrl, saveToken } from './token/storage.js';
+import { extractTokenFromUrl, saveTokenForBrowser } from './token/store.js';
+import type { BrowserId } from './config.js';
 
 export type LaunchOptions = {
   headless?: boolean;
@@ -23,11 +24,15 @@ export async function openVkhost(page: Page): Promise<void> {
   await page.goto(VKHOST_URL, { waitUntil: 'networkidle2' });
 }
 
-export async function saveTokenFromUrl(url: string, tokenFile: string): Promise<void> {
+export async function saveTokenFromUrl(
+  url: string,
+  browserId: BrowserId,
+  appId?: number,
+): Promise<void> {
   const parsed = extractTokenFromUrl(url);
   if (!parsed) {
     throw new Error('В URL нет access_token');
   }
 
-  await saveToken(parsed, tokenFile);
+  await saveTokenForBrowser(browserId, { ...parsed, appId });
 }

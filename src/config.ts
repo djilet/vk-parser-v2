@@ -33,7 +33,7 @@ export function parseBrowserId(value?: string | number): BrowserId {
 export function getBrowserPaths(browserId: BrowserId): BrowserPaths {
   return {
     browserProfile: join(process.cwd(), `.browser-profile-${browserId}`),
-    tokenFile: join(process.cwd(), `.vk-token-${browserId}.json`),
+    tokenFile: join(process.cwd(), 'tokens', `browser-${browserId}.json`),
   };
 }
 

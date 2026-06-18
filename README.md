@@ -1,6 +1,6 @@
 # VK Chat Bot — получение access token
 
-Две команды для работы с [vkhost.github.io](https://vkhost.github.io/):
+Работа с [vkhost.github.io](https://vkhost.github.io/).
 
 ## Установка
 
@@ -8,69 +8,75 @@
 npm install
 ```
 
-## 1. Создать сессию (вручную)
+## Команды
 
-Открывает браузер на vkhost.github.io. Войдите в VK — сессия сохранится в `.browser-profile/`.
+### Создать сессию (вручную)
 
 ```bash
 npm run vk:session
+npm run vk:session -- --browser 2
 ```
 
-Когда закончите — закройте браузер или нажмите Enter в терминале.
-
-## 2. Получить токен (автоматически)
-
-Открывает браузер, кликает по приложению, подтверждает доступ и сохраняет токен в `.vk-token.json`.
+### Получить и сохранить токен
 
 ```bash
 npm run vk:token
+npm run vk:token -- --browser 2
+npm run vk:token-all   # по очереди для браузеров 1 и 2
 ```
 
-По умолчанию используется приложение **vk.com** (ID `6287487`). Можно переопределить:
+### Работа с сохранёнными токенами
 
 ```bash
-VK_APP_NAME="vk.com" npm run vk:token
-VK_APP_ID=6287487 npm run vk:token
+npm run vk:tokens              # список всех токенов
+npm run vk:show -- --browser 1 # показать токен браузера
+npm run vk:get -- --browser 1  # вывести только access_token (для скриптов)
 ```
 
 ## Несколько браузеров
 
-Поддерживаются два независимых профиля: **1** и **2**. У каждого своя сессия и свой токен.
+Два независимых профиля: **1** и **2**.
 
-```bash
-# Браузер 1 (по умолчанию)
-npm run vk:session
-npm run vk:token
-
-# Браузер 2
-npm run vk:session -- --browser 2
-npm run vk:token -- --browser 2
-```
-
-Файлы:
-- `.browser-profile-1/`, `.browser-profile-2/` — сессии
-- `.vk-token-1.json`, `.vk-token-2.json` — токены
-
-Можно также через переменную окружения:
+| Браузер | Сессия | Токен |
+|---------|--------|-------|
+| 1 | `.browser-profile-1/` | `tokens/browser-1.json` |
+| 2 | `.browser-profile-2/` | `tokens/browser-2.json` |
 
 ```bash
 VK_BROWSER=2 npm run vk:token
 ```
 
-## Формат сохранённого токена
+## Локальное хранение токенов
+
+Токены сохраняются в папку `tokens/` с метаданными:
 
 ```json
 {
-  "accessToken": "...",
+  "browserId": 1,
+  "accessToken": "vk1.a....",
   "expiresIn": 86400,
+  "expiresAt": "2026-06-19T12:00:00.000Z",
   "userId": 123456789,
+  "email": "user@mail.ru",
+  "appId": 6287487,
   "savedAt": "2026-06-18T12:00:00.000Z"
 }
 ```
 
+### Использование в коде
+
+```typescript
+import { getAccessToken, loadToken, loadAllTokens } from './token/index.js';
+
+const token = await getAccessToken(1); // активный токен браузера #1
+const saved = await loadToken(2);      // полные данные браузера #2
+const all = await loadAllTokens();     // все сохранённые токены
+```
+
 ## Порядок использования
 
-1. `npm run vk:session` — один раз, чтобы войти в VK
-2. `npm run vk:token` — когда нужен свежий access token
+1. `npm run vk:session -- --browser 1` — войти в VK
+2. `npm run vk:token -- --browser 1` — получить и сохранить токен
+3. `npm run vk:get -- --browser 1` — использовать токен в других скриптах
 
-Файлы `.browser-profile/` и `.vk-token.json` добавлены в `.gitignore`.
+Старые файлы `.vk-token-*.json` автоматически мигрируют в `tokens/` при первом чтении.

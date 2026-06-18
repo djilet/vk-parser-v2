@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { runSessionCommand } from './commands/session.js';
 import { runTokenCommand, runAllTokensCommand } from './commands/token.js';
 import { runGetTokenCommand, runListTokensCommand, runShowTokenCommand } from './commands/tokens.js';
+import { getDefaultOutputDir, parseChatLimit, parseMaxMessages, runUnreadChatsCommand } from './commands/unread.js';
 import { parseBrowserId } from './config.js';
 
 const program = new Command();
@@ -85,6 +86,27 @@ program
   .action(async (options: { browser: string }) => {
     try {
       await runGetTokenCommand(parseBrowserId(options.browser));
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('unread')
+  .description('Найти непрочитанные чаты среди последних N диалогов и выгрузить беседы в JSON')
+  .option('-b, --browser <number>', 'Номер браузера (1 или 2); без флага — все сохранённые аккаунты')
+  .option('-l, --limit <number>', 'Сколько последних чатов проверить', '60')
+  .option('-m, --max-messages <number>', 'Сколько последних сообщений проверять в каждом чате', '200')
+  .option('-o, --output <dir>', 'Папка для отчёта', getDefaultOutputDir())
+  .action(async (options: { browser?: string; limit: string; maxMessages?: string; output: string }) => {
+    try {
+      await runUnreadChatsCommand({
+        browserId: options.browser ? parseBrowserId(options.browser) : undefined,
+        chatLimit: parseChatLimit(options.limit),
+        maxMessages: parseMaxMessages(options.maxMessages),
+        outputDir: options.output,
+      });
     } catch (error) {
       console.error(error instanceof Error ? error.message : error);
       process.exit(1);

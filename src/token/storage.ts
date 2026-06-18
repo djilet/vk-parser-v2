@@ -1,5 +1,4 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { paths } from '../config.js';
 
 export type SavedToken = {
   accessToken: string;
@@ -23,19 +22,22 @@ export function extractTokenFromUrl(url: string): Omit<SavedToken, 'savedAt'> | 
   };
 }
 
-export async function saveToken(token: Omit<SavedToken, 'savedAt'>): Promise<SavedToken> {
+export async function saveToken(
+  token: Omit<SavedToken, 'savedAt'>,
+  tokenFile: string,
+): Promise<SavedToken> {
   const saved: SavedToken = {
     ...token,
     savedAt: new Date().toISOString(),
   };
 
-  await writeFile(paths.tokenFile, JSON.stringify(saved, null, 2) + '\n', 'utf8');
+  await writeFile(tokenFile, JSON.stringify(saved, null, 2) + '\n', 'utf8');
   return saved;
 }
 
-export async function loadToken(): Promise<SavedToken | null> {
+export async function loadToken(tokenFile: string): Promise<SavedToken | null> {
   try {
-    const raw = await readFile(paths.tokenFile, 'utf8');
+    const raw = await readFile(tokenFile, 'utf8');
     return JSON.parse(raw) as SavedToken;
   } catch {
     return null;

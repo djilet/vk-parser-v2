@@ -1,6 +1,8 @@
 node_modules/
 dist/
 .browser-profile/
+.browser-profile-*/
 .vk-token.json
+.vk-token-*.json
 .env
 .DS_Store

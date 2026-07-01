@@ -25,6 +25,53 @@ function buildContactsPayload(community) {
   }));
 }
 
+async function reconcileCommunityByPeerId(supabase, payload) {
+  if (payload.peer_id == null) {
+    return;
+  }
+
+  const { data: existing, error: findError } = await supabase
+    .from('communities')
+    .select('id')
+    .eq('peer_id', payload.peer_id)
+    .maybeSingle();
+
+  if (findError) {
+    throw new Error(findError.message);
+  }
+
+  if (!existing) {
+    return;
+  }
+
+  const { error: deleteError } = await supabase
+    .from('communities')
+    .delete()
+    .eq('url', payload.url)
+    .neq('id', existing.id);
+
+  if (deleteError) {
+    throw new Error(deleteError.message);
+  }
+
+  const { error: updateError } = await supabase
+    .from('communities')
+    .update({
+      url: payload.url,
+      name: payload.name,
+      phone: payload.phone,
+      site: payload.site,
+      msg_url: payload.msg_url,
+      peer_id: payload.peer_id,
+      last_post_date: payload.last_post_date,
+    })
+    .eq('id', existing.id);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+}
+
 export async function verifySupabase() {
   if (!isSupabaseConfigured()) {
     throw new Error('Supabase не настроен: задайте SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY в .env');
@@ -74,6 +121,8 @@ export function createSupabaseExporter(searchQuery) {
     if (!payload.url) {
       throw new Error('У сообщества нет url');
     }
+
+    await reconcileCommunityByPeerId(supabase, payload);
 
     const { data, error } = await supabase.rpc('upsert_community_bundle', {
       p_search_query: query,

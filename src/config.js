@@ -7,6 +7,8 @@ const args = parseArgs();
 const query = args.query ?? null;
 const limitRaw = args.limit ?? args.count ?? null;
 const limit = limitRaw == null ? null : Number.parseInt(String(limitRaw), 10);
+const skipRaw = args.skip ?? null;
+const skip = skipRaw == null ? null : Number.parseInt(String(skipRaw), 10);
 const jsonFile = args.file ?? null;
 
 export const config = {
@@ -18,6 +20,9 @@ export const config = {
 
   /** Сколько групп парсить из списка */
   limit: Number.isFinite(limit) && limit > 0 ? limit : null,
+
+  /** Сколько первых сообществ пропустить в списке (для parse-skip) */
+  skip: Number.isFinite(skip) && skip >= 0 ? skip : null,
 
   /** Путь к JSON для скрипта openMessages */
   jsonFile,

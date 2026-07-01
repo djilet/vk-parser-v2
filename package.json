@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
+    "parse-skip": "node src/parseSkip.js",
     "messages": "node src/openMessages.js",
     "send-messages": "node src/sendMessages.js",
     "send-messages-parity": "node src/sendMessagesParity.js",

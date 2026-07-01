@@ -10,7 +10,7 @@ import { verifySupabase } from './export/toSupabase.js';
 import { runCommunityParser } from './parser/communityParser.js';
 
 function ensureConfig() {
-  const example = 'npm start -- --query "Футбольные турниры" --limit 3';
+  const example = 'npm run parse-skip -- --query "Футзал турниры" --limit 10 --skip 27';
 
   if (!config.query?.trim()) {
     console.error(`Укажите параметры запуска: ${example}`);
@@ -19,6 +19,11 @@ function ensureConfig() {
 
   if (!config.limit) {
     console.error(`Укажите параметры запуска: ${example}`);
+    process.exit(1);
+  }
+
+  if (config.skip == null) {
+    console.error(`Укажите --skip: ${example}`);
     process.exit(1);
   }
 }
@@ -51,13 +56,21 @@ async function main() {
     return;
   }
 
-  console.log(`Запланировано групп: ${config.limit}`);
+  if (config.skip >= searchResults.count) {
+    console.log(
+      `\nВ списке ${searchResults.count} сообществ, а --skip=${config.skip}. `
+      + 'Нечего парсить. Завершаю работу.',
+    );
+    return;
+  }
+
+  console.log(`Пропуск: ${config.skip}, запланировано групп: ${config.limit}`);
 
   const searchQuery = config.query.trim();
   const processedCount = await runCommunityParser(page, {
     searchQuery,
     limit: config.limit,
-    skip: 0,
+    skip: config.skip,
   });
 
   if (processedCount === 0) {

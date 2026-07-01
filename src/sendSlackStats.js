@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { sendSlackMessage } from './slack/sendMessage.js';
-import { countCommunities, countMessagesSentToday, countMessagesSentTotal } from './storage/stats.js';
+import { countMessagesSentToday, countMessagesSentTotal, countWritableCommunities } from './storage/stats.js';
 import { isSupabaseConfigured } from './supabase/client.js';
 
 function ensureConfig() {
@@ -15,37 +15,37 @@ function ensureConfig() {
   }
 }
 
-function formatSentPercent(sentTotal, totalCommunities) {
-  if (totalCommunities === 0) {
+function formatSentPercent(sentTotal, writableCommunities) {
+  if (writableCommunities === 0) {
     return '0.0%';
   }
 
-  const percent = (sentTotal / totalCommunities) * 100;
+  const percent = (sentTotal / writableCommunities) * 100;
   return `${percent.toFixed(1)}%`;
 }
 
-function buildStatsMessage(sentToday, sentTotal, sentPercent, totalCommunities) {
-  return `Сегодня отправили *${sentToday}*\nВсего отправлено *${sentTotal}* / *${sentPercent}*\nВсего сообществ в базе *${totalCommunities}*`;
+function buildStatsMessage(sentToday, sentTotal, sentPercent, writableCommunities) {
+  return `Сегодня отправили *${sentToday}*\nВсего отправлено *${sentTotal}* / *${sentPercent}*\nМожно написать *${writableCommunities}*`;
 }
 
 async function main() {
   ensureConfig();
 
-  const [sentToday, sentTotal, totalCommunities] = await Promise.all([
+  const [sentToday, sentTotal, writableCommunities] = await Promise.all([
     countMessagesSentToday(config.stats.timezone),
     countMessagesSentTotal(),
-    countCommunities(),
+    countWritableCommunities(),
   ]);
 
-  const sentPercent = formatSentPercent(sentTotal, totalCommunities);
-  const message = buildStatsMessage(sentToday, sentTotal, sentPercent, totalCommunities);
+  const sentPercent = formatSentPercent(sentTotal, writableCommunities);
+  const message = buildStatsMessage(sentToday, sentTotal, sentPercent, writableCommunities);
 
   await sendSlackMessage(config.slack.webhookUrl, message);
 
   console.log('Отправлено в Slack:');
   console.log(`  Сегодня отправили: ${sentToday}`);
   console.log(`  Всего отправлено: ${sentTotal} / ${sentPercent}`);
-  console.log(`  Всего сообществ в базе: ${totalCommunities}`);
+  console.log(`  Можно написать: ${writableCommunities}`);
 }
 
 main().catch((err) => {

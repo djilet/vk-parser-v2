@@ -45,3 +45,19 @@ export async function countCommunities() {
 
   return count ?? 0;
 }
+
+export async function countWritableCommunities() {
+  const supabase = getSupabaseClient();
+
+  const { count, error } = await supabase
+    .from('communities')
+    .select('*', { count: 'exact', head: true })
+    .not('msg_url', 'is', null)
+    .not('peer_id', 'is', null);
+
+  if (error) {
+    throw new Error(`Supabase: не удалось посчитать сообщества для отправки — ${error.message}`);
+  }
+
+  return count ?? 0;
+}

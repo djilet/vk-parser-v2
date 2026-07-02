@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { URL } from 'node:url';
 import { getTokenByUserId, isTokenExpired, loadAllTokens } from '../src/token/index.js';
 import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
-import { getConversations, getConversationsById, getHistory, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
+import { getConversations, getConversationsById, getHistory, getUsers, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
 import { mapConversationToSummary } from '../src/vk/conversation-summary.js';
 import { formatMessages } from '../src/vk/message-format.js';
 
@@ -101,16 +101,40 @@ function parseConversationFilter(value: string | null): VkConversationFilter {
 
 async function handleAccounts(_req: IncomingMessage, res: ServerResponse): Promise<void> {
   const tokens = await loadAllTokens();
+  const activeTokens = tokens.filter((token) => token.userId && !isTokenExpired(token));
+  const profilesById = new Map<number, { first_name: string; last_name: string }>();
+
+  if (activeTokens.length > 0) {
+    try {
+      const userIds = [...new Set(activeTokens.map((token) => token.userId!))];
+      const profiles = await getUsers(activeTokens[0].accessToken, userIds);
+
+      for (const profile of profiles ?? []) {
+        profilesById.set(profile.id, {
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+        });
+      }
+    } catch {
+      // fall back to email / token label in the UI
+    }
+  }
 
   sendJson(
     res,
     200,
-    tokens.map((token) => ({
-      userId: token.userId,
-      email: token.email,
-      browserId: token.browserId,
-      expired: isTokenExpired(token),
-    })),
+    tokens.map((token) => {
+      const profile = token.userId ? profilesById.get(token.userId) : undefined;
+
+      return {
+        userId: token.userId,
+        email: token.email,
+        firstName: profile?.first_name,
+        lastName: profile?.last_name,
+        browserId: token.browserId,
+        expired: isTokenExpired(token),
+      };
+    }),
   );
 }
 

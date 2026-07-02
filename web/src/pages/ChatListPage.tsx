@@ -34,6 +34,10 @@ function emptyBrowserState(): BrowserChatsState {
 }
 
 function tabLabel(browserId: number, account: Account | undefined): string {
+  if (account?.firstName || account?.lastName) {
+    return `${account.firstName ?? ''} ${account.lastName ?? ''}`.trim();
+  }
+
   if (account?.email) {
     return account.email;
   }

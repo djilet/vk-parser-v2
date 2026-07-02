@@ -1,6 +1,8 @@
 export type Account = {
   userId?: number;
   email?: string;
+  firstName?: string;
+  lastName?: string;
   browserId: number;
   expired: boolean;
 };

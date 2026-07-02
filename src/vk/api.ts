@@ -167,6 +167,16 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export async function getUsers(accessToken: string, userIds: number[]): Promise<VkGetHistoryResponse['profiles']> {
+  if (userIds.length === 0) {
+    return [];
+  }
+
+  return vkRequest<NonNullable<VkGetHistoryResponse['profiles']>>('users.get', accessToken, {
+    user_ids: userIds.join(','),
+  });
+}
+
 export async function sendMessage(
   accessToken: string,
   peerId: number,

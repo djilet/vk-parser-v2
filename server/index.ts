@@ -2,14 +2,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { URL } from 'node:url';
 import { getTokenByUserId, isTokenExpired, loadAllTokens } from '../src/token/index.js';
 import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
-import { getConversations, getConversationsById, getFullHistory, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
+import { getConversations, getConversationsById, getHistory, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
 import { mapConversationToSummary } from '../src/vk/conversation-summary.js';
 import { formatMessages } from '../src/vk/message-format.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const DEFAULT_CHAT_LIMIT = 20;
 const MAX_CHAT_LIMIT = 200;
-const MAX_MESSAGES = 200;
+const DEFAULT_MESSAGE_LIMIT = 50;
+const MAX_MESSAGE_LIMIT = 200;
 
 type JsonBody = Record<string, unknown>;
 
@@ -64,11 +65,15 @@ function parsePeerId(value: string): number {
   return peerId;
 }
 
-function parseLimit(value: string | null): number {
-  const limit = value ? Number(value) : DEFAULT_CHAT_LIMIT;
+function parseLimit(
+  value: string | null,
+  defaultLimit = DEFAULT_CHAT_LIMIT,
+  maxLimit = MAX_CHAT_LIMIT,
+): number {
+  const limit = value ? Number(value) : defaultLimit;
 
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_CHAT_LIMIT) {
-    throw new Error(`limit must be an integer between 1 and ${MAX_CHAT_LIMIT}`);
+  if (!Number.isInteger(limit) || limit < 1 || limit > maxLimit) {
+    throw new Error(`limit must be an integer between 1 and ${maxLimit}`);
   }
 
   return limit;
@@ -185,9 +190,11 @@ async function handleGetMessages(
 ): Promise<void> {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
   const accountId = parseAccountId(url.searchParams.get('accountId'));
+  const limit = parseLimit(url.searchParams.get('limit'), DEFAULT_MESSAGE_LIMIT, MAX_MESSAGE_LIMIT);
+  const offset = parseOffset(url.searchParams.get('offset'));
   const token = await getTokenByUserId(accountId);
 
-  const history = await getFullHistory(token.accessToken, peerId, { maxMessages: MAX_MESSAGES });
+  const history = await getHistory(token.accessToken, peerId, limit, offset);
   const messages = formatMessages(history.items);
 
   sendJson(res, 200, {
@@ -195,6 +202,10 @@ async function handleGetMessages(
     peerId,
     userId: token.userId,
     messages,
+    total: history.count,
+    offset,
+    limit,
+    hasMore: history.items.length === limit,
   });
 }
 

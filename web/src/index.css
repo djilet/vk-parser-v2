@@ -147,6 +147,11 @@ body {
   background: #fafafa;
 }
 
+.chat-messages-load-more {
+  text-align: center;
+  padding: 8px 0 12px;
+}
+
 .message-row {
   display: flex;
   margin-bottom: 12px;

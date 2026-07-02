@@ -21,6 +21,7 @@ export type ChatSummary = {
 };
 
 export type ExportedMessage = {
+  id?: number;
   date: string;
   fromId: number;
   text: string;
@@ -32,6 +33,15 @@ export type MessagesResponse = {
   peerId: number;
   userId?: number;
   messages: ExportedMessage[];
+  total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+};
+
+export type MessagesParams = {
+  limit?: number;
+  offset?: number;
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -101,8 +111,22 @@ export function fetchConversations(
   return apiFetch(`/api/conversations?${search}`);
 }
 
-export function fetchMessages(accountId: number, peerId: number): Promise<MessagesResponse> {
-  return apiFetch(`/api/chats/${peerId}/messages?accountId=${accountId}`);
+export function fetchMessages(
+  accountId: number,
+  peerId: number,
+  params: MessagesParams = {},
+): Promise<MessagesResponse> {
+  const search = new URLSearchParams({ accountId: String(accountId) });
+
+  if (params.limit !== undefined) {
+    search.set('limit', String(params.limit));
+  }
+
+  if (params.offset !== undefined) {
+    search.set('offset', String(params.offset));
+  }
+
+  return apiFetch(`/api/chats/${peerId}/messages?${search}`);
 }
 
 export function sendMessage(

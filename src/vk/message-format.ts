@@ -7,6 +7,7 @@ export type ExportedFile = {
 };
 
 export type ExportedMessage = {
+  id?: number;
   date: string;
   fromId: number;
   text: string;
@@ -164,6 +165,7 @@ export function isUnreadIncoming(message: VkMessage, conversation: VkConversatio
 
 export function formatMessage(message: VkMessage): ExportedMessage {
   return {
+    id: message.id,
     date: new Date(message.date * 1000).toISOString(),
     fromId: message.from_id,
     text: message.text ?? '',

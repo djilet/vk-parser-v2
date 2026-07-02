@@ -1,9 +1,11 @@
 import { ArrowLeftOutlined, SendOutlined } from '@ant-design/icons';
 import { Alert, Button, Input, Spin, Typography } from 'antd';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { fetchMessages, sendMessage, type ExportedMessage } from '../api';
-import MessageList from '../components/MessageList';
+import MessageList, { mergeMessages } from '../components/MessageList';
+
+const MESSAGE_PAGE_SIZE = 50;
 
 export default function ChatPage() {
   const navigate = useNavigate();
@@ -18,10 +20,17 @@ export default function ChatPage() {
   const [userId, setUserId] = useState<number>();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextOffset, setNextOffset] = useState(0);
+  const [stickToBottom, setStickToBottom] = useState(false);
+  const [paginationReady, setPaginationReady] = useState(false);
+  const [scrollAnchorIndex, setScrollAnchorIndex] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const loadingMoreRef = useRef(false);
 
-  async function loadMessages() {
+  const loadLatestMessages = useCallback(async () => {
     if (!accountId || !numericPeerId) {
       setError('Invalid chat parameters');
       setLoading(false);
@@ -30,21 +39,66 @@ export default function ChatPage() {
 
     setLoading(true);
     setError(null);
+    setPaginationReady(false);
 
     try {
-      const data = await fetchMessages(accountId, numericPeerId);
+      const data = await fetchMessages(accountId, numericPeerId, {
+        limit: MESSAGE_PAGE_SIZE,
+        offset: 0,
+      });
+
       setMessages(data.messages);
       setUserId(data.userId);
+      setHasMore(data.hasMore);
+      setNextOffset(data.messages.length);
+      setStickToBottom(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages');
     } finally {
       setLoading(false);
     }
-  }
+  }, [accountId, numericPeerId]);
 
   useEffect(() => {
-    void loadMessages();
-  }, [accountId, numericPeerId]);
+    setMessages([]);
+    setHasMore(false);
+    setNextOffset(0);
+    setPaginationReady(false);
+    setScrollAnchorIndex(null);
+    void loadLatestMessages();
+  }, [loadLatestMessages]);
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!accountId || !numericPeerId || !hasMore || loadingMoreRef.current) {
+      return;
+    }
+
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    setError(null);
+
+    try {
+      const data = await fetchMessages(accountId, numericPeerId, {
+        limit: MESSAGE_PAGE_SIZE,
+        offset: nextOffset,
+      });
+
+      setMessages((prev) => {
+        const { messages: merged, prependedCount } = mergeMessages(prev, data.messages);
+        if (prependedCount > 0) {
+          setScrollAnchorIndex(prependedCount);
+        }
+        return merged;
+      });
+      setHasMore(data.hasMore);
+      setNextOffset((prev) => prev + data.messages.length);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load older messages');
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [accountId, numericPeerId, hasMore, nextOffset]);
 
   async function handleSend() {
     const message = text.trim();
@@ -65,6 +119,7 @@ export default function ChatPage() {
           files: [],
         },
       ]);
+      setStickToBottom(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
     } finally {
@@ -88,7 +143,21 @@ export default function ChatPage() {
           <Spin size="large" />
         </div>
       ) : (
-        <MessageList messages={messages} userId={userId} />
+        <MessageList
+          messages={messages}
+          userId={userId}
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          paginationReady={paginationReady}
+          stickToBottom={stickToBottom}
+          scrollAnchorIndex={scrollAnchorIndex}
+          onStickToBottomApplied={() => {
+            setStickToBottom(false);
+            requestAnimationFrame(() => setPaginationReady(true));
+          }}
+          onScrollAnchorApplied={() => setScrollAnchorIndex(null)}
+          onLoadOlder={() => void loadOlderMessages()}
+        />
       )}
 
       <div className="chat-input-bar">

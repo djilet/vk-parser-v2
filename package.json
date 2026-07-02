@@ -10,7 +10,7 @@
     "build": "tsc",
     "dev:server": "tsx server/index.ts",
     "dev:web": "npm run dev --prefix web",
-    "dev": "npm run dev:server & sleep 1 && npm run dev:web",
+    "dev": "lsof -ti :3001 | xargs kill -9 2>/dev/null || true; npm run dev:server & sleep 1 && npm run dev:web",
     "vk:session": "tsx src/cli.ts session",
     "vk:token": "tsx src/cli.ts token",
     "vk:token-all": "tsx src/cli.ts token-all",

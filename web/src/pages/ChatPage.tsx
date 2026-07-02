@@ -56,7 +56,15 @@ export default function ChatPage() {
     try {
       await sendMessage(accountId, numericPeerId, message);
       setText('');
-      await loadMessages();
+      setMessages((prev) => [
+        ...prev,
+        {
+          date: new Date().toISOString(),
+          fromId: userId ?? accountId,
+          text: message,
+          files: [],
+        },
+      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
     } finally {

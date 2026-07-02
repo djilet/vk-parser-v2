@@ -53,16 +53,35 @@ async function vkRequest<T>(method: string, accessToken: string, params: VkParam
   }
 }
 
+export type VkConversationFilter = 'all' | 'unread' | 'important' | 'unanswered';
+
 export async function getConversations(
   accessToken: string,
   count: number,
   offset = 0,
+  filter: VkConversationFilter = 'all',
 ): Promise<VkGetConversationsResponse> {
   return vkRequest<VkGetConversationsResponse>('messages.getConversations', accessToken, {
     count,
     offset,
     extended: 1,
-    fields: 'screen_name',
+    fields: 'photo_100,screen_name',
+    filter,
+  });
+}
+
+export async function getConversationsById(
+  accessToken: string,
+  peerIds: number[],
+): Promise<VkGetConversationsResponse> {
+  if (peerIds.length === 0) {
+    return { count: 0, items: [] };
+  }
+
+  return vkRequest<VkGetConversationsResponse>('messages.getConversationsById', accessToken, {
+    peer_ids: peerIds.join(','),
+    extended: 1,
+    fields: 'photo_100,screen_name',
   });
 }
 

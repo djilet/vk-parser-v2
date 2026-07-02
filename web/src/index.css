@@ -25,10 +25,50 @@ body {
   padding: 16px;
 }
 
+.chat-list-tab-label {
+  padding-right: 8px;
+}
+
+.chat-list-panel {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+.chat-list-load-more {
+  text-align: center;
+  padding: 16px;
+}
+
+.chat-list-sentinel {
+  height: 1px;
+}
+
+.chat-list-end {
+  display: block;
+  text-align: center;
+  padding: 12px 0 4px;
+  font-size: 12px;
+}
+
 .chat-card {
   cursor: pointer;
   margin-bottom: 12px;
   transition: box-shadow 0.2s;
+}
+
+.chat-card-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.chat-card-avatar {
+  flex-shrink: 0;
+}
+
+.chat-card-content {
+  min-width: 0;
+  flex: 1;
 }
 
 .chat-card:hover {
@@ -40,6 +80,39 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+}
+
+.chat-card-title-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-card-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.chat-card-pin-icon {
+  color: #1677ff;
+  flex-shrink: 0;
+}
+
+.chat-card-pin-button {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.chat-card-pinned {
+  border-color: #91caff;
+  background: #f0f7ff;
+}
+
+.chat-card-pinned .chat-card-pin-button {
+  color: #1677ff;
 }
 
 .chat-card-last-message {

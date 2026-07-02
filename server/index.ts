@@ -1,12 +1,14 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
 import { getTokenByUserId, isTokenExpired, loadAllTokens } from '../src/token/index.js';
-import { getConversations, getFullHistory, sendMessage } from '../src/vk/api.js';
+import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
+import { getConversations, getConversationsById, getFullHistory, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
+import { mapConversationToSummary } from '../src/vk/conversation-summary.js';
 import { formatMessages } from '../src/vk/message-format.js';
-import { resolvePeerTitle } from '../src/vk/peer-title.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
-const CHAT_LIMIT = 60;
+const DEFAULT_CHAT_LIMIT = 20;
+const MAX_CHAT_LIMIT = 200;
 const MAX_MESSAGES = 200;
 
 type JsonBody = Record<string, unknown>;
@@ -15,7 +17,7 @@ function sendJson(res: ServerResponse, status: number, data: unknown): void {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   });
   res.end(JSON.stringify(data));
@@ -62,6 +64,36 @@ function parsePeerId(value: string): number {
   return peerId;
 }
 
+function parseLimit(value: string | null): number {
+  const limit = value ? Number(value) : DEFAULT_CHAT_LIMIT;
+
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_CHAT_LIMIT) {
+    throw new Error(`limit must be an integer between 1 and ${MAX_CHAT_LIMIT}`);
+  }
+
+  return limit;
+}
+
+function parseOffset(value: string | null): number {
+  const offset = value ? Number(value) : 0;
+
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new Error('offset must be a non-negative integer');
+  }
+
+  return offset;
+}
+
+function parseConversationFilter(value: string | null): VkConversationFilter {
+  const filter = value ?? 'all';
+
+  if (filter !== 'all' && filter !== 'unread' && filter !== 'important' && filter !== 'unanswered') {
+    throw new Error('filter must be all, unread, important, or unanswered');
+  }
+
+  return filter;
+}
+
 async function handleAccounts(_req: IncomingMessage, res: ServerResponse): Promise<void> {
   const tokens = await loadAllTokens();
 
@@ -80,32 +112,70 @@ async function handleAccounts(_req: IncomingMessage, res: ServerResponse): Promi
 async function handleConversations(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
   const accountId = parseAccountId(url.searchParams.get('accountId'));
+  const limit = parseLimit(url.searchParams.get('limit'));
+  const offset = parseOffset(url.searchParams.get('offset'));
+  const filter = parseConversationFilter(url.searchParams.get('filter'));
   const token = await getTokenByUserId(accountId);
 
-  const data = await getConversations(token.accessToken, CHAT_LIMIT);
+  const data = await getConversations(token.accessToken, limit, offset, filter);
   const profiles = data.profiles ?? [];
   const groups = data.groups ?? [];
 
-  const chats = data.items.map((item) => {
-    const lastMessage = item.last_message;
-    const peerId = item.conversation.peer.id;
+  const chats = data.items.map((item) => mapConversationToSummary(item, profiles, groups));
 
-    return {
-      peerId,
-      peerType: item.conversation.peer.type,
-      title: resolvePeerTitle(item, profiles, groups),
-      unreadCount: item.conversation.unread_count,
-      lastMessage: lastMessage
-        ? {
-            text: lastMessage.text ?? '',
-            date: new Date(lastMessage.date * 1000).toISOString(),
-            out: lastMessage.out === 1,
-          }
-        : null,
-    };
-  });
+  sendJson(res, 200, { accountId, chats, total: data.count, offset, limit, filter });
+}
+
+async function handleGetPinnedChats(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+  const accountId = parseAccountId(url.searchParams.get('accountId'));
+  await getTokenByUserId(accountId);
+
+  const peerIds = await loadPinnedPeerIds(accountId);
+  sendJson(res, 200, { accountId, peerIds });
+}
+
+async function handleGetPinnedConversations(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+  const accountId = parseAccountId(url.searchParams.get('accountId'));
+  const token = await getTokenByUserId(accountId);
+  const peerIds = await loadPinnedPeerIds(accountId);
+
+  if (peerIds.length === 0) {
+    sendJson(res, 200, { accountId, chats: [] });
+    return;
+  }
+
+  const data = await getConversationsById(token.accessToken, peerIds);
+  const profiles = data.profiles ?? [];
+  const groups = data.groups ?? [];
+  const chatsByPeerId = new Map<number, ReturnType<typeof mapConversationToSummary>>();
+
+  for (const item of data.items) {
+    const chat = mapConversationToSummary(item, profiles, groups);
+    chatsByPeerId.set(chat.peerId, chat);
+  }
+
+  const chats = peerIds
+    .map((peerId) => chatsByPeerId.get(peerId))
+    .filter((chat): chat is NonNullable<typeof chat> => chat != null);
 
   sendJson(res, 200, { accountId, chats });
+}
+
+async function handleSetChatPin(
+  req: IncomingMessage,
+  res: ServerResponse,
+  peerId: number,
+): Promise<void> {
+  const body = await readBody(req);
+  const accountId = parseAccountId(String(body.accountId ?? ''));
+  const pinned = body.pinned === true;
+
+  await getTokenByUserId(accountId);
+  const peerIds = await setPeerPinned(accountId, peerId, pinned);
+
+  sendJson(res, 200, { accountId, peerId, pinned, peerIds });
 }
 
 async function handleGetMessages(
@@ -165,6 +235,23 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
     if (req.method === 'GET' && pathname === '/api/conversations') {
       await handleConversations(req, res);
+      return;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/pinned-chats') {
+      await handleGetPinnedChats(req, res);
+      return;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/pinned-chats/conversations') {
+      await handleGetPinnedConversations(req, res);
+      return;
+    }
+
+    const pinMatch = pathname.match(/^\/api\/chats\/(-?\d+)\/pin$/);
+    if (pinMatch && req.method === 'PUT') {
+      const peerId = parsePeerId(pinMatch[1]);
+      await handleSetChatPin(req, res, peerId);
       return;
     }
 

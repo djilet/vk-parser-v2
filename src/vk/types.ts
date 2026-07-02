@@ -21,6 +21,17 @@ export type VkMessage = {
   [key: string]: unknown;
 };
 
+export type VkChatPhoto = {
+  photo_50?: string;
+  photo_100?: string;
+  photo_200?: string;
+};
+
+export type VkChatSettings = {
+  title?: string;
+  photo?: VkChatPhoto;
+};
+
 export type VkConversation = {
   peer: VkPeer;
   in_read: number;
@@ -30,6 +41,7 @@ export type VkConversation = {
   out_read_cmid?: number;
   last_message_id?: number;
   last_conversation_message_id?: number;
+  chat_settings?: VkChatSettings;
 };
 
 export type VkConversationItem = {

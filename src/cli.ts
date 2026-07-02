@@ -4,6 +4,7 @@ import { runSessionCommand } from './commands/session.js';
 import { runTokenCommand, runAllTokensCommand } from './commands/token.js';
 import { runGetTokenCommand, runListTokensCommand, runShowTokenCommand } from './commands/tokens.js';
 import { getDefaultOutputDir, parseChatLimit, parseMaxMessages, runUnreadChatsCommand } from './commands/unread.js';
+import { parseAccountId, parsePeerId, runSendMessageCommand } from './commands/send.js';
 import { parseBrowserId } from './config.js';
 
 const program = new Command();
@@ -106,6 +107,25 @@ program
         chatLimit: parseChatLimit(options.limit),
         maxMessages: parseMaxMessages(options.maxMessages),
         outputDir: options.output,
+      });
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('send')
+  .description('Отправить сообщение в чат')
+  .requiredOption('-a, --account <id>', 'accountId (userId из токена)')
+  .requiredOption('-p, --peer <id>', 'peerId чата')
+  .requiredOption('-m, --message <text>', 'Текст сообщения')
+  .action(async (options: { account: string; peer: string; message: string }) => {
+    try {
+      await runSendMessageCommand({
+        accountId: parseAccountId(options.account),
+        peerId: parsePeerId(options.peer),
+        message: options.message,
       });
     } catch (error) {
       console.error(error instanceof Error ? error.message : error);

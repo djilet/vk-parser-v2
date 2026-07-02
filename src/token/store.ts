@@ -139,6 +139,30 @@ export async function getAccessToken(browserId: BrowserId): Promise<string> {
   return token.accessToken;
 }
 
+export async function getTokenByUserId(userId: number): Promise<SavedToken> {
+  const tokens = await loadAllTokens();
+  const token = tokens.find((entry) => entry.userId === userId);
+
+  if (!token) {
+    const available = tokens
+      .map((entry) => entry.userId)
+      .filter((id): id is number => id != null)
+      .join(', ');
+
+    throw new Error(
+      `Токен для accountId=${userId} не найден.${available ? ` Доступные: ${available}` : ' Сначала получите токен: npm run vk:token'}`,
+    );
+  }
+
+  if (isTokenExpired(token)) {
+    throw new Error(
+      `Токен для accountId=${userId} истёк. Запустите: npm run vk:token -- --browser ${token.browserId}`,
+    );
+  }
+
+  return token;
+}
+
 export function formatTokenStatus(token: SavedToken): string {
   const status = isTokenExpired(token) ? 'истёк' : 'активен';
   const parts = [

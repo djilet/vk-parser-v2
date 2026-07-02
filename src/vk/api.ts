@@ -147,3 +147,15 @@ export async function getFullHistory(
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export async function sendMessage(
+  accessToken: string,
+  peerId: number,
+  message: string,
+): Promise<number> {
+  return vkRequest<number>('messages.send', accessToken, {
+    peer_id: peerId,
+    message,
+    random_id: Math.floor(Math.random() * 2_147_483_647),
+  });
+}

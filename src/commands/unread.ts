@@ -4,7 +4,8 @@ import { type BrowserId } from '../config.js';
 import { formatTokenStatus, isTokenExpired, loadAllTokens, loadToken, type SavedToken } from '../token/index.js';
 import { getConversations, getFullHistory, sleep } from '../vk/api.js';
 import { formatMessages } from '../vk/message-format.js';
-import type { VkConversationItem, VkGroup, VkProfile } from '../vk/types.js';
+import { resolvePeerTitle } from '../vk/peer-title.js';
+import type { VkConversationItem } from '../vk/types.js';
 
 const DEFAULT_CHAT_LIMIT = 60;
 const DEFAULT_MAX_MESSAGES = 200;
@@ -41,35 +42,6 @@ export type UnreadReport = {
   maxMessages: number;
   accounts: AccountUnreadSummary[];
 };
-
-function resolvePeerTitle(
-  item: VkConversationItem,
-  profiles: VkProfile[] = [],
-  groups: VkGroup[] = [],
-): string {
-  const peer = item.conversation.peer;
-
-  if (peer.type === 'user') {
-    const profile = profiles.find((entry) => entry.id === peer.id);
-    if (profile) {
-      return `${profile.first_name} ${profile.last_name}`.trim();
-    }
-  }
-
-  if (peer.type === 'group') {
-    const group = groups.find((entry) => entry.id === Math.abs(peer.id));
-    if (group) {
-      return group.name;
-    }
-  }
-
-  if (peer.type === 'chat') {
-    const chatId = peer.id - 2_000_000_000;
-    return `Беседа #${chatId}`;
-  }
-
-  return `peer_${peer.id}`;
-}
 
 function conversationFileName(peerId: number): string {
   return `${peerId}.json`;

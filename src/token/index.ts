@@ -2,6 +2,7 @@ export {
   extractTokenFromUrl,
   formatTokenStatus,
   getAccessToken,
+  getTokenByUserId,
   isTokenExpired,
   loadAllTokens,
   loadToken,

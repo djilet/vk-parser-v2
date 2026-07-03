@@ -1,3 +1,13 @@
+export type ChatStatus = 'initial' | 'active_dialog' | 'client';
+
+export const DEFAULT_CHAT_STATUS: ChatStatus = 'initial';
+
+export const CHAT_STATUS_OPTIONS: { value: ChatStatus; label: string }[] = [
+  { value: 'initial', label: 'Новый' },
+  { value: 'active_dialog', label: 'Диалог' },
+  { value: 'client', label: 'Клиент' },
+];
+
 export type Account = {
   userId?: number;
   email?: string;
@@ -217,5 +227,23 @@ export function setChatPinned(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ accountId, pinned }),
+  });
+}
+
+export function fetchChatStatuses(
+  accountId: number,
+): Promise<{ accountId: number; statuses: Record<number, ChatStatus> }> {
+  return apiFetch(`/api/chat-status?accountId=${accountId}`);
+}
+
+export function setChatStatus(
+  accountId: number,
+  peerId: number,
+  status: ChatStatus,
+): Promise<{ accountId: number; peerId: number; status: ChatStatus; statuses: Record<number, ChatStatus> }> {
+  return apiFetch(`/api/chats/${peerId}/status`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accountId, status }),
   });
 }

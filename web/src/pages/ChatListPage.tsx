@@ -1,9 +1,10 @@
 import { Alert, Badge, Spin, Tabs, Typography } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAccounts, fetchConversations, fetchPinnedConversations, fetchPinnedPeerIds, setChatPinned, type Account, type ChatSummary, type SseEvent } from '../api';
+import { fetchAccounts, fetchChatStatuses, fetchConversations, fetchPinnedConversations, fetchPinnedPeerIds, setChatPinned, setChatStatus, type Account, type ChatStatus, type ChatSummary, type SseEvent, DEFAULT_CHAT_STATUS } from '../api';
 import ChatCard, { buildChatList, ChatListEmpty } from '../components/ChatCard';
 import { useSseEvents } from '../context/SseProvider';
+import { ThemeSwitcher } from '../context/ThemeProvider';
 import { findBrowserIdForAccount, upsertChat, upsertPinnedChat } from '../utils/chats';
 
 const BROWSER_IDS = [1, 2] as const;
@@ -72,18 +73,22 @@ function BrowserTabContent({
   state,
   pinnedPeerIds,
   pinnedChats,
+  chatStatuses,
   onOpenChat,
   onLoadMore,
   onTogglePin,
+  onStatusChange,
 }: {
   browserId: number;
   account: Account | undefined;
   state: BrowserChatsState;
   pinnedPeerIds: number[];
   pinnedChats: ChatSummary[];
+  chatStatuses: Record<number, ChatStatus>;
   onOpenChat: (chat: ChatSummary, accountId: number) => void;
   onLoadMore: () => void;
   onTogglePin: (peerId: number, pinned: boolean) => void;
+  onStatusChange: (peerId: number, status: ChatStatus) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -159,8 +164,10 @@ function BrowserTabContent({
           key={chat.peerId}
           chat={chat}
           pinned={pinned}
+          status={chatStatuses[chat.peerId] ?? DEFAULT_CHAT_STATUS}
           onClick={() => onOpenChat(chat, account.userId!)}
           onTogglePin={(nextPinned) => onTogglePin(chat.peerId, nextPinned)}
+          onStatusChange={(status) => onStatusChange(chat.peerId, status)}
         />
       ))}
 
@@ -198,6 +205,10 @@ export default function ChatListPage() {
   const [pinnedChatsByBrowser, setPinnedChatsByBrowser] = useState<Record<number, ChatSummary[]>>({
     1: [],
     2: [],
+  });
+  const [chatStatusesByBrowser, setChatStatusesByBrowser] = useState<Record<number, Record<number, ChatStatus>>>({
+    1: {},
+    2: {},
   });
   const loadingRef = useRef<Record<number, boolean>>({});
   const initialTabSetRef = useRef(false);
@@ -373,6 +384,24 @@ export default function ChatListPage() {
     }
   }, [accounts]);
 
+  const loadChatStatuses = useCallback(async (browserId: number) => {
+    const account = accounts.find((entry) => entry.browserId === browserId);
+    if (!account?.userId || account.expired) {
+      setChatStatusesByBrowser((prev) => ({ ...prev, [browserId]: {} }));
+      return;
+    }
+
+    try {
+      const data = await fetchChatStatuses(account.userId);
+      setChatStatusesByBrowser((prev) => ({
+        ...prev,
+        [browserId]: data.statuses,
+      }));
+    } catch {
+      setChatStatusesByBrowser((prev) => ({ ...prev, [browserId]: {} }));
+    }
+  }, [accounts]);
+
   useEffect(() => {
     if (accountsLoading) {
       return;
@@ -380,6 +409,14 @@ export default function ChatListPage() {
 
     void Promise.all(BROWSER_IDS.map((browserId) => loadPinnedChats(browserId)));
   }, [accounts, accountsLoading, loadPinnedChats]);
+
+  useEffect(() => {
+    if (accountsLoading) {
+      return;
+    }
+
+    void Promise.all(BROWSER_IDS.map((browserId) => loadChatStatuses(browserId)));
+  }, [accounts, accountsLoading, loadChatStatuses]);
 
   const loadChats = useCallback(async (browserId: number, offset: number) => {
     if (loadingRef.current[browserId]) {
@@ -516,6 +553,34 @@ export default function ChatListPage() {
     [accounts, loadPinnedChats],
   );
 
+  const handleStatusChange = useCallback(
+    async (browserId: number, peerId: number, status: ChatStatus) => {
+      const account = accounts.find((entry) => entry.browserId === browserId);
+      if (!account?.userId) {
+        return;
+      }
+
+      setChatStatusesByBrowser((prev) => ({
+        ...prev,
+        [browserId]: {
+          ...prev[browserId],
+          [peerId]: status,
+        },
+      }));
+
+      try {
+        const result = await setChatStatus(account.userId, peerId, status);
+        setChatStatusesByBrowser((prev) => ({
+          ...prev,
+          [browserId]: result.statuses,
+        }));
+      } catch {
+        await loadChatStatuses(browserId);
+      }
+    },
+    [accounts, loadChatStatuses],
+  );
+
   function openChat(chat: ChatSummary, accountId: number) {
     const params = new URLSearchParams({
       accountId: String(accountId),
@@ -533,9 +598,12 @@ export default function ChatListPage() {
 
   return (
     <div className="chat-list">
-      <Typography.Title level={3} style={{ marginTop: 0 }}>
-        Чаты
-      </Typography.Title>
+      <div className="chat-list-header">
+        <Typography.Title level={3} style={{ margin: 0 }}>
+          Чаты
+        </Typography.Title>
+        <ThemeSwitcher />
+      </div>
 
       {accountsError && (
         <Alert type="error" message={accountsError} showIcon style={{ marginBottom: 16 }} />
@@ -577,9 +645,11 @@ export default function ChatListPage() {
                   state={state}
                   pinnedPeerIds={pinnedPeerIdsByBrowser[browserId]}
                   pinnedChats={pinnedChatsByBrowser[browserId]}
+                  chatStatuses={chatStatusesByBrowser[browserId] ?? {}}
                   onOpenChat={openChat}
                   onLoadMore={() => handleLoadMore(browserId)}
                   onTogglePin={(peerId, pinned) => void handleTogglePin(browserId, peerId, pinned)}
+                  onStatusChange={(peerId, status) => void handleStatusChange(browserId, peerId, status)}
                 />
               ),
             };

@@ -1,6 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
 import { getTokenByUserId, isTokenExpired, loadAllTokens } from '../src/token/index.js';
+import { loadChatStatuses, setChatStatus } from '../src/chat-status/store.js';
+import { isChatStatus } from '../src/chat-status/types.js';
 import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
 import { getConversations, getConversationsById, getHistory, getUsers, markPeerAsRead, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
 import { mapConversationToSummary } from '../src/vk/conversation-summary.js';
@@ -210,6 +212,34 @@ async function handleSetChatPin(
   sendJson(res, 200, { accountId, peerId, pinned, peerIds });
 }
 
+async function handleGetChatStatuses(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+  const accountId = parseAccountId(url.searchParams.get('accountId'));
+  await getTokenByUserId(accountId);
+
+  const statuses = await loadChatStatuses(accountId);
+  sendJson(res, 200, { accountId, statuses });
+}
+
+async function handleSetChatStatus(
+  req: IncomingMessage,
+  res: ServerResponse,
+  peerId: number,
+): Promise<void> {
+  const body = await readBody(req);
+  const accountId = parseAccountId(String(body.accountId ?? ''));
+  const status = body.status;
+
+  if (!isChatStatus(status)) {
+    throw new Error('Invalid chat status');
+  }
+
+  await getTokenByUserId(accountId);
+  const statuses = await setChatStatus(accountId, peerId, status);
+
+  sendJson(res, 200, { accountId, peerId, status, statuses });
+}
+
 async function handleGetMessages(
   req: IncomingMessage,
   res: ServerResponse,
@@ -382,10 +412,22 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       return;
     }
 
+    if (req.method === 'GET' && pathname === '/api/chat-status') {
+      await handleGetChatStatuses(req, res);
+      return;
+    }
+
     const pinMatch = pathname.match(/^\/api\/chats\/(-?\d+)\/pin$/);
     if (pinMatch && req.method === 'PUT') {
       const peerId = parsePeerId(pinMatch[1]);
       await handleSetChatPin(req, res, peerId);
+      return;
+    }
+
+    const statusMatch = pathname.match(/^\/api\/chats\/(-?\d+)\/status$/);
+    if (statusMatch && req.method === 'PUT') {
+      const peerId = parsePeerId(statusMatch[1]);
+      await handleSetChatStatus(req, res, peerId);
       return;
     }
 

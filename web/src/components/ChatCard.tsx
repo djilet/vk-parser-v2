@@ -1,12 +1,14 @@
 import { PushpinFilled, PushpinOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Badge, Button, Card, Empty, Spin, Tooltip, Typography } from 'antd';
-import type { ChatSummary } from '../api';
+import { Avatar, Badge, Button, Card, Empty, Select, Spin, Tooltip, Typography } from 'antd';
+import { CHAT_STATUS_OPTIONS, DEFAULT_CHAT_STATUS, type ChatStatus, type ChatSummary } from '../api';
 
 type ChatCardProps = {
   chat: ChatSummary;
   pinned?: boolean;
+  status?: ChatStatus;
   onClick: () => void;
   onTogglePin?: (pinned: boolean) => void;
+  onStatusChange?: (status: ChatStatus) => void;
 };
 
 function formatLastMessage(text: string): string {
@@ -31,7 +33,14 @@ function chatAvatarIcon(peerType: string) {
   return <UserOutlined />;
 }
 
-export default function ChatCard({ chat, pinned = false, onClick, onTogglePin }: ChatCardProps) {
+export default function ChatCard({
+  chat,
+  pinned = false,
+  status = DEFAULT_CHAT_STATUS,
+  onClick,
+  onTogglePin,
+  onStatusChange,
+}: ChatCardProps) {
   const lastText = chat.lastMessage ? formatLastMessage(chat.lastMessage.text) : 'Нет сообщений';
   const prefix = chat.lastMessage?.out ? 'Вы: ' : '';
 
@@ -58,7 +67,20 @@ export default function ChatCard({ chat, pinned = false, onClick, onTogglePin }:
               </Typography.Text>
             </div>
             <div className="chat-card-title-actions">
-              {chat.unreadCount > 0 && <Badge count={chat.unreadCount} overflowCount={999} />}
+              {onStatusChange && (
+                <div
+                  className="chat-card-status-select"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <Select
+                    size="small"
+                    value={status}
+                    options={CHAT_STATUS_OPTIONS}
+                    popupMatchSelectWidth={false}
+                    onChange={onStatusChange}
+                  />
+                </div>
+              )}
               {onTogglePin && (
                 <Tooltip title={pinned ? 'Открепить' : 'Закрепить'}>
                   <Button
@@ -86,6 +108,10 @@ export default function ChatCard({ chat, pinned = false, onClick, onTogglePin }:
             </Typography.Text>
           )}
         </div>
+
+        {chat.unreadCount > 0 && (
+          <Badge count={chat.unreadCount} overflowCount={999} className="chat-card-unread-badge" />
+        )}
       </div>
     </Card>
   );

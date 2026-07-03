@@ -74,7 +74,7 @@ export type VkGetHistoryResponse = {
   items: VkMessage[];
   profiles?: VkProfile[];
   groups?: VkGroup[];
-  conversations?: VkConversationItem[];
+  conversations?: Array<VkConversationItem | VkConversation>;
 };
 
 export type VkApiErrorResponse = {

@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { URL } from 'node:url';
 import { getTokenByUserId, isTokenExpired, loadAllTokens } from '../src/token/index.js';
 import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
-import { getConversations, getConversationsById, getHistory, getUsers, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
+import { getConversations, getConversationsById, getHistory, getUsers, markPeerAsRead, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
 import { mapConversationToSummary } from '../src/vk/conversation-summary.js';
 import { formatMessages } from '../src/vk/message-format.js';
 import { suggestReply, type ChatMessageForSuggestion } from '../src/ollama/suggest-reply.js';
@@ -222,6 +222,15 @@ async function handleGetMessages(
   const history = await getHistory(token.accessToken, peerId, limit, offset);
   const messages = formatMessages(history.items);
 
+  let markedRead = false;
+  if (offset === 0) {
+    try {
+      markedRead = await markPeerAsRead(token.accessToken, peerId);
+    } catch {
+      // keep chat usable even if VK mark-as-read fails
+    }
+  }
+
   sendJson(res, 200, {
     accountId,
     peerId,
@@ -231,7 +240,22 @@ async function handleGetMessages(
     offset,
     limit,
     hasMore: history.items.length === limit,
+    markedRead,
   });
+}
+
+async function handleMarkAsRead(
+  req: IncomingMessage,
+  res: ServerResponse,
+  peerId: number,
+): Promise<void> {
+  const body = await readBody(req);
+  const accountId = parseAccountId(String(body.accountId ?? ''));
+  const token = await getTokenByUserId(accountId);
+
+  const markedRead = await markPeerAsRead(token.accessToken, peerId);
+
+  sendJson(res, 200, { accountId, peerId, markedRead });
 }
 
 async function handleSendMessage(
@@ -354,6 +378,13 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     if (suggestReplyMatch && req.method === 'POST') {
       const peerId = parsePeerId(suggestReplyMatch[1]);
       await handleSuggestReply(req, res, peerId);
+      return;
+    }
+
+    const readMatch = pathname.match(/^\/api\/chats\/(-?\d+)\/read$/);
+    if (readMatch && req.method === 'POST') {
+      const peerId = parsePeerId(readMatch[1]);
+      await handleMarkAsRead(req, res, peerId);
       return;
     }
 

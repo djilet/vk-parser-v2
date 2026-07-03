@@ -438,9 +438,13 @@ export default function ChatListPage() {
   );
 
   function openChat(chat: ChatSummary, accountId: number) {
-    navigate(
-      `/chat/${chat.peerId}?accountId=${accountId}&title=${encodeURIComponent(chat.title)}`,
-    );
+    const params = new URLSearchParams({
+      accountId: String(accountId),
+      title: chat.title,
+      unreadCount: String(chat.unreadCount),
+    });
+
+    navigate(`/chat/${chat.peerId}?${params}`);
   }
 
   const hasAnyActiveAccount = BROWSER_IDS.some((browserId) => {

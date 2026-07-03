@@ -143,6 +143,17 @@ export function sendMessage(
   });
 }
 
+export function markChatAsRead(
+  accountId: number,
+  peerId: number,
+): Promise<{ accountId: number; peerId: number; upToCmid: number | null }> {
+  return apiFetch(`/api/chats/${peerId}/read`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accountId }),
+  });
+}
+
 export function suggestReply(
   accountId: number,
   peerId: number,

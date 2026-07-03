@@ -1,4 +1,4 @@
-import type { VkApiErrorResponse, VkGetConversationsResponse, VkGetHistoryResponse } from './types.js';
+import type { VkApiErrorResponse, VkConversation, VkConversationItem, VkGetConversationsResponse, VkGetHistoryResponse } from './types.js';
 
 export const VK_API_VERSION = '5.199';
 
@@ -124,4 +124,48 @@ export async function sendMessage(
     message,
     random_id: Math.floor(Math.random() * 2_147_483_647),
   });
+}
+
+export async function markAsRead(accessToken: string, peerId: number, upToCmid?: number): Promise<1> {
+  return vkRequest<1>('messages.markAsRead', accessToken, {
+    peer_id: peerId,
+    up_to_cmid: upToCmid,
+    mark_conversation_as_read: upToCmid == null ? 1 : undefined,
+  });
+}
+
+function normalizeConversation(item: VkConversationItem | VkConversation): VkConversation {
+  if ('conversation' in item) {
+    return item.conversation;
+  }
+
+  return item;
+}
+
+export async function markPeerAsRead(accessToken: string, peerId: number): Promise<boolean> {
+  const data = await getConversationsById(accessToken, [peerId]);
+  const item = data.items[0];
+
+  if (!item) {
+    return false;
+  }
+
+  const conversation = normalizeConversation(item);
+
+  if ((conversation.unread_count ?? 0) === 0) {
+    return false;
+  }
+
+  let upToCmid = conversation.last_conversation_message_id;
+
+  if (upToCmid == null) {
+    const history = await getHistory(accessToken, peerId, 1, 0);
+
+    if (history.items.length > 0) {
+      upToCmid = Math.max(...history.items.map((message) => message.conversation_message_id));
+    }
+  }
+
+  await markAsRead(accessToken, peerId, upToCmid);
+  return true;
 }

@@ -1,11 +1,14 @@
 import { Alert, Badge, Spin, Tabs, Typography } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAccounts, fetchConversations, fetchPinnedConversations, fetchPinnedPeerIds, setChatPinned, type Account, type ChatSummary } from '../api';
+import { fetchAccounts, fetchConversations, fetchPinnedConversations, fetchPinnedPeerIds, setChatPinned, type Account, type ChatSummary, type SseEvent } from '../api';
 import ChatCard, { buildChatList, ChatListEmpty } from '../components/ChatCard';
+import { useSseEvents } from '../context/SseProvider';
+import { findBrowserIdForAccount, upsertChat, upsertPinnedChat } from '../utils/chats';
 
 const BROWSER_IDS = [1, 2] as const;
 const PAGE_SIZE = 50;
+const DEFAULT_DOCUMENT_TITLE = 'VK Chats';
 
 type BrowserChatsState = {
   chats: ChatSummary[];
@@ -198,6 +201,91 @@ export default function ChatListPage() {
   });
   const loadingRef = useRef<Record<number, boolean>>({});
   const initialTabSetRef = useRef(false);
+  const accountsRef = useRef(accounts);
+
+  accountsRef.current = accounts;
+
+  const refreshUnreadCount = useCallback(async (browserId: number, account: Account) => {
+    if (!account.userId || account.expired) {
+      setChatsByBrowser((prev) => ({
+        ...prev,
+        [browserId]: {
+          ...prev[browserId],
+          unreadChatCount: 0,
+        },
+      }));
+      return;
+    }
+
+    try {
+      const data = await fetchConversations(account.userId, {
+        limit: 1,
+        offset: 0,
+        filter: 'unread',
+      });
+
+      setChatsByBrowser((prev) => ({
+        ...prev,
+        [browserId]: {
+          ...prev[browserId],
+          unreadChatCount: data.total,
+        },
+      }));
+    } catch {
+      setChatsByBrowser((prev) => ({
+        ...prev,
+        [browserId]: {
+          ...prev[browserId],
+          unreadChatCount: 0,
+        },
+      }));
+    }
+  }, []);
+
+  const handleSseEvent = useCallback((event: SseEvent) => {
+    const browserId = findBrowserIdForAccount(accountsRef.current, event.accountId);
+    if (browserId == null) {
+      return;
+    }
+
+    if (event.type === 'unread_count') {
+      setChatsByBrowser((prev) => ({
+        ...prev,
+        [browserId]: {
+          ...prev[browserId],
+          unreadChatCount: event.count,
+        },
+      }));
+      return;
+    }
+
+    if (event.type === 'chat.updated') {
+      setChatsByBrowser((prev) => {
+        const state = prev[browserId];
+        if (!state.loaded) {
+          return prev;
+        }
+
+        const isNewChat = !state.chats.some((chat) => chat.peerId === event.chat.peerId);
+
+        return {
+          ...prev,
+          [browserId]: {
+            ...state,
+            chats: upsertChat(state.chats, event.chat),
+            total: isNewChat ? Math.max(state.total, state.chats.length) + 1 : state.total,
+          },
+        };
+      });
+
+      setPinnedChatsByBrowser((prev) => ({
+        ...prev,
+        [browserId]: upsertPinnedChat(prev[browserId] ?? [], event.chat),
+      }));
+    }
+  }, []);
+
+  useSseEvents(handleSseEvent);
 
   useEffect(() => {
     void (async () => {
@@ -227,46 +315,35 @@ export default function ChatListPage() {
       return;
     }
 
-    void (async () => {
-      await Promise.all(
-        BROWSER_IDS.map(async (browserId) => {
-          const account = accounts.find((entry) => entry.browserId === browserId);
+    for (const browserId of BROWSER_IDS) {
+      const account = accounts.find((entry) => entry.browserId === browserId);
+      if (!account?.userId || account.expired) {
+        setChatsByBrowser((prev) => ({
+          ...prev,
+          [browserId]: emptyBrowserState(),
+        }));
+      }
+    }
 
-          if (!account?.userId || account.expired) {
-            setChatsByBrowser((prev) => ({
-              ...prev,
-              [browserId]: emptyBrowserState(),
-            }));
-            return;
-          }
+    void Promise.all(
+      BROWSER_IDS.map((browserId) => {
+        const account = accounts.find((entry) => entry.browserId === browserId);
+        if (!account) {
+          return Promise.resolve();
+        }
+        return refreshUnreadCount(browserId, account);
+      }),
+    );
+  }, [accounts, accountsLoading, refreshUnreadCount]);
 
-          try {
-            const data = await fetchConversations(account.userId, {
-              limit: 1,
-              offset: 0,
-              filter: 'unread',
-            });
+  useEffect(() => {
+    const totalUnread = BROWSER_IDS.reduce(
+      (sum, browserId) => sum + (chatsByBrowser[browserId]?.unreadChatCount ?? 0),
+      0,
+    );
 
-            setChatsByBrowser((prev) => ({
-              ...prev,
-              [browserId]: {
-                ...prev[browserId],
-                unreadChatCount: data.total,
-              },
-            }));
-          } catch {
-            setChatsByBrowser((prev) => ({
-              ...prev,
-              [browserId]: {
-                ...prev[browserId],
-                unreadChatCount: 0,
-              },
-            }));
-          }
-        }),
-      );
-    })();
-  }, [accounts, accountsLoading]);
+    document.title = totalUnread > 0 ? `(${totalUnread}) ${DEFAULT_DOCUMENT_TITLE}` : DEFAULT_DOCUMENT_TITLE;
+  }, [chatsByBrowser]);
 
   const loadPinnedChats = useCallback(async (browserId: number) => {
     const account = accounts.find((entry) => entry.browserId === browserId);

@@ -22,6 +22,38 @@ export type ChatSummary = {
   lastMessage: LastMessage | null;
 };
 
+export type SseUnreadCountEvent = {
+  type: 'unread_count';
+  accountId: number;
+  count: number;
+};
+
+export type SseChatUpdatedEvent = {
+  type: 'chat.updated';
+  accountId: number;
+  chat: ChatSummary;
+};
+
+export type SseMessageNewEvent = {
+  type: 'message.new';
+  accountId: number;
+  peerId: number;
+  message: ExportedMessage;
+};
+
+export type SseMessagesReadEvent = {
+  type: 'messages.read';
+  accountId: number;
+  peerId: number;
+  incoming: boolean;
+};
+
+export type SseEvent =
+  | SseUnreadCountEvent
+  | SseChatUpdatedEvent
+  | SseMessageNewEvent
+  | SseMessagesReadEvent;
+
 export type ExportedMessage = {
   id?: number;
   date: string;

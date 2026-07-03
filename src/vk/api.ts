@@ -169,3 +169,17 @@ export async function markPeerAsRead(accessToken: string, peerId: number): Promi
   await markAsRead(accessToken, peerId, upToCmid);
   return true;
 }
+
+export type LongPollServer = {
+  server: string;
+  key: string;
+  ts: number;
+  pts?: number;
+};
+
+export async function getLongPollServer(accessToken: string): Promise<LongPollServer> {
+  return vkRequest<LongPollServer>('messages.getLongPollServer', accessToken, {
+    need_pts: 1,
+    lp_version: 3,
+  });
+}

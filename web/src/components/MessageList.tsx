@@ -3,6 +3,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { ExportedMessage } from '../api';
 
 const TOP_LOAD_THRESHOLD_PX = 80;
+const NEAR_BOTTOM_THRESHOLD_PX = 80;
 
 type MessageListProps = {
   messages: ExportedMessage[];
@@ -14,6 +15,7 @@ type MessageListProps = {
   scrollAnchorIndex?: number | null;
   onStickToBottomApplied?: () => void;
   onScrollAnchorApplied?: () => void;
+  onNearBottomChange?: (nearBottom: boolean) => void;
   onLoadOlder?: () => void;
 };
 
@@ -44,6 +46,7 @@ export default function MessageList({
   scrollAnchorIndex = null,
   onStickToBottomApplied,
   onScrollAnchorApplied,
+  onNearBottomChange,
   onLoadOlder,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,6 +68,7 @@ export default function MessageList({
 
     if (stickToBottom) {
       container.scrollTop = container.scrollHeight;
+      onNearBottomChange?.(true);
       onStickToBottomApplied?.();
       return;
     }
@@ -123,12 +127,20 @@ export default function MessageList({
 
   const handleScroll = useCallback(() => {
     const container = scrollRef.current;
-    if (container && container.scrollTop > TOP_LOAD_THRESHOLD_PX) {
-      paginationBlockedRef.current = false;
+    if (container) {
+      if (container.scrollTop > TOP_LOAD_THRESHOLD_PX) {
+        paginationBlockedRef.current = false;
+      }
+
+      if (onNearBottomChange) {
+        const distanceFromBottom =
+          container.scrollHeight - container.scrollTop - container.clientHeight;
+        onNearBottomChange(distanceFromBottom <= NEAR_BOTTOM_THRESHOLD_PX);
+      }
     }
 
     tryLoadOlder();
-  }, [tryLoadOlder]);
+  }, [tryLoadOlder, onNearBottomChange]);
 
   return (
     <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
@@ -179,26 +191,50 @@ export default function MessageList({
   );
 }
 
+function dedupeMessagesList(messages: ExportedMessage[]): ExportedMessage[] {
+  const withId = messages.filter((message) => message.id != null);
+  const seenIds = new Set<number>();
+  const result: ExportedMessage[] = [];
+
+  for (const message of messages) {
+    if (message.id != null) {
+      if (seenIds.has(message.id)) {
+        continue;
+      }
+      seenIds.add(message.id);
+      result.push(message);
+      continue;
+    }
+
+    const hasRealDuplicate = withId.some(
+      (candidate) => candidate.text === message.text && candidate.fromId === message.fromId,
+    );
+    if (hasRealDuplicate) {
+      continue;
+    }
+
+    result.push(message);
+  }
+
+  return result.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
 export function mergeMessages(
   existing: ExportedMessage[],
   older: ExportedMessage[],
 ): { messages: ExportedMessage[]; prependedCount: number } {
-  const merged = [...older, ...existing];
-  const seen = new Set<number>();
-  const result: ExportedMessage[] = [];
-
-  for (const message of merged) {
-    if (message.id != null) {
-      if (seen.has(message.id)) {
-        continue;
-      }
-      seen.add(message.id);
-    }
-    result.push(message);
-  }
-
-  const messages = result.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const messages = dedupeMessagesList([...older, ...existing]);
   const prependedCount = Math.max(0, messages.length - existing.length);
 
   return { messages, prependedCount };
+}
+
+export function appendNewMessages(
+  existing: ExportedMessage[],
+  latest: ExportedMessage[],
+): { messages: ExportedMessage[]; appendedCount: number } {
+  const messages = dedupeMessagesList([...existing, ...latest]);
+  const appendedCount = Math.max(0, messages.length - existing.length);
+
+  return { messages, appendedCount };
 }

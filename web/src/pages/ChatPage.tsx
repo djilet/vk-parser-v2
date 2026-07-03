@@ -2,8 +2,9 @@ import { ArrowLeftOutlined, SendOutlined } from '@ant-design/icons';
 import { Alert, Button, Input, Spin, Typography } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { fetchMessages, sendMessage, suggestReply, type ExportedMessage } from '../api';
-import MessageList, { mergeMessages } from '../components/MessageList';
+import { fetchMessages, sendMessage, suggestReply, type ExportedMessage, type SseEvent } from '../api';
+import MessageList, { appendNewMessages, mergeMessages } from '../components/MessageList';
+import { useSseEvents } from '../context/SseProvider';
 
 const MESSAGE_PAGE_SIZE = 50;
 
@@ -30,6 +31,30 @@ export default function ChatPage() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
+  const nearBottomRef = useRef(true);
+
+  const handleSseEvent = useCallback(
+    (event: SseEvent) => {
+      if (event.type !== 'message.new') {
+        return;
+      }
+
+      if (event.accountId !== accountId || event.peerId !== numericPeerId) {
+        return;
+      }
+
+      setMessages((prev) => {
+        const { messages, appendedCount } = appendNewMessages(prev, [event.message]);
+        if (appendedCount > 0 && nearBottomRef.current) {
+          setStickToBottom(true);
+        }
+        return messages;
+      });
+    },
+    [accountId, numericPeerId],
+  );
+
+  useSseEvents(handleSseEvent);
 
   const loadLatestMessages = useCallback(async () => {
     if (!accountId || !numericPeerId) {
@@ -174,6 +199,9 @@ export default function ChatPage() {
             requestAnimationFrame(() => setPaginationReady(true));
           }}
           onScrollAnchorApplied={() => setScrollAnchorIndex(null)}
+          onNearBottomChange={(nearBottom) => {
+            nearBottomRef.current = nearBottom;
+          }}
           onLoadOlder={() => void loadOlderMessages()}
         />
       )}

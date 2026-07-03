@@ -6,6 +6,8 @@ import { getConversations, getConversationsById, getHistory, getUsers, markPeerA
 import { mapConversationToSummary } from '../src/vk/conversation-summary.js';
 import { formatMessages } from '../src/vk/message-format.js';
 import { suggestReply, type ChatMessageForSuggestion } from '../src/ollama/suggest-reply.js';
+import { eventBus } from './event-bus.js';
+import { startLongPollManager } from './long-poll-manager.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const DEFAULT_CHAT_LIMIT = 20;
@@ -317,6 +319,29 @@ async function handleSuggestReply(
   sendJson(res, 200, { accountId, peerId, suggestion });
 }
 
+function handleSse(_req: IncomingMessage, res: ServerResponse): void {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+  });
+  res.write('\n');
+
+  const unsubscribe = eventBus.subscribe((event) => {
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  });
+
+  const heartbeat = setInterval(() => {
+    res.write(': heartbeat\n\n');
+  }, 30_000);
+
+  res.on('close', () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+  });
+}
+
 async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -332,6 +357,11 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   const pathname = url.pathname;
 
   try {
+    if (req.method === 'GET' && pathname === '/api/events') {
+      handleSse(req, res);
+      return;
+    }
+
     if (req.method === 'GET' && pathname === '/api/accounts') {
       await handleAccounts(req, res);
       return;
@@ -401,4 +431,5 @@ const server = createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`API server running at http://localhost:${PORT}`);
+  startLongPollManager();
 });

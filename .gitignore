@@ -6,5 +6,4 @@ tokens/
 .vk-token.json
 .vk-token-*.json
 .env
-data/
 .DS_Store

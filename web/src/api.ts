@@ -143,6 +143,18 @@ export function sendMessage(
   });
 }
 
+export function suggestReply(
+  accountId: number,
+  peerId: number,
+  messages: ExportedMessage[],
+): Promise<{ suggestion: string }> {
+  return apiFetch(`/api/chats/${peerId}/suggest-reply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accountId, messages }),
+  });
+}
+
 export function fetchPinnedPeerIds(accountId: number): Promise<{ accountId: number; peerIds: number[] }> {
   return apiFetch(`/api/pinned-chats?accountId=${accountId}`);
 }

@@ -2,7 +2,7 @@ import { ArrowLeftOutlined, SendOutlined } from '@ant-design/icons';
 import { Alert, Button, Input, Spin, Typography } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { fetchMessages, sendMessage, type ExportedMessage } from '../api';
+import { fetchMessages, sendMessage, suggestReply, type ExportedMessage } from '../api';
 import MessageList, { mergeMessages } from '../components/MessageList';
 
 const MESSAGE_PAGE_SIZE = 50;
@@ -27,6 +27,7 @@ export default function ChatPage() {
   const [paginationReady, setPaginationReady] = useState(false);
   const [scrollAnchorIndex, setScrollAnchorIndex] = useState<number | null>(null);
   const [sending, setSending] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
 
@@ -127,6 +128,23 @@ export default function ChatPage() {
     }
   }
 
+  async function handleSuggestReply() {
+    if (!accountId || !numericPeerId || messages.length === 0) return;
+
+    setGenerating(true);
+    setError(null);
+
+    try {
+      const lastMessages = messages.slice(-MESSAGE_PAGE_SIZE);
+      const data = await suggestReply(accountId, numericPeerId, lastMessages);
+      setText(data.suggestion);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate reply');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <div className="chat-page">
       <div className="chat-header">
@@ -173,14 +191,21 @@ export default function ChatPage() {
                 void handleSend();
               }
             }}
-            disabled={sending}
+            disabled={sending || generating}
           />
+          <Button
+            onClick={() => void handleSuggestReply()}
+            loading={generating}
+            disabled={loading || sending || generating || messages.length === 0}
+          >
+            AI
+          </Button>
           <Button
             type="primary"
             icon={<SendOutlined />}
             loading={sending}
             onClick={() => void handleSend()}
-            disabled={!text.trim()}
+            disabled={!text.trim() || generating}
           >
             Отправить
           </Button>

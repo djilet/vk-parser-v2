@@ -5,6 +5,7 @@ import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
 import { getConversations, getConversationsById, getHistory, getUsers, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
 import { mapConversationToSummary } from '../src/vk/conversation-summary.js';
 import { formatMessages } from '../src/vk/message-format.js';
+import { suggestReply, type ChatMessageForSuggestion } from '../src/ollama/suggest-reply.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const DEFAULT_CHAT_LIMIT = 20;
@@ -253,6 +254,45 @@ async function handleSendMessage(
   sendJson(res, 200, { messageId, peerId, accountId });
 }
 
+function parseSuggestionMessages(value: unknown): ChatMessageForSuggestion[] {
+  if (!Array.isArray(value)) {
+    throw new Error('messages must be an array');
+  }
+
+  const messages = value
+    .filter((item): item is ChatMessageForSuggestion => {
+      if (typeof item !== 'object' || item == null) return false;
+      const candidate = item as Partial<ChatMessageForSuggestion>;
+      return (
+        typeof candidate.date === 'string'
+        && Number.isInteger(candidate.fromId)
+        && typeof candidate.text === 'string'
+        && Array.isArray(candidate.files)
+      );
+    })
+    .slice(-DEFAULT_MESSAGE_LIMIT);
+
+  if (messages.length === 0) {
+    throw new Error('messages cannot be empty');
+  }
+
+  return messages;
+}
+
+async function handleSuggestReply(
+  req: IncomingMessage,
+  res: ServerResponse,
+  peerId: number,
+): Promise<void> {
+  const body = await readBody(req);
+  const accountId = parseAccountId(String(body.accountId ?? ''));
+  const token = await getTokenByUserId(accountId);
+  const messages = parseSuggestionMessages(body.messages);
+  const suggestion = await suggestReply(messages, token.userId);
+
+  sendJson(res, 200, { accountId, peerId, suggestion });
+}
+
 async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -308,6 +348,13 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         await handleSendMessage(req, res, peerId);
         return;
       }
+    }
+
+    const suggestReplyMatch = pathname.match(/^\/api\/chats\/(-?\d+)\/suggest-reply$/);
+    if (suggestReplyMatch && req.method === 'POST') {
+      const peerId = parsePeerId(suggestReplyMatch[1]);
+      await handleSuggestReply(req, res, peerId);
+      return;
     }
 
     sendJson(res, 404, { error: 'Not found' });

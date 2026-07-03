@@ -197,6 +197,7 @@ export default function ChatListPage() {
     2: [],
   });
   const loadingRef = useRef<Record<number, boolean>>({});
+  const initialTabSetRef = useRef(false);
 
   useEffect(() => {
     void (async () => {
@@ -209,8 +210,9 @@ export default function ChatListPage() {
           return account?.userId && !account.expired;
         });
 
-        if (firstActive) {
+        if (firstActive && !initialTabSetRef.current) {
           setActiveBrowserId(firstActive);
+          initialTabSetRef.current = true;
         }
       } catch (err) {
         setAccountsError(err instanceof Error ? err.message : 'Failed to load accounts');

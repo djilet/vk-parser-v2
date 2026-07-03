@@ -17,7 +17,6 @@
     "vk:tokens": "tsx src/cli.ts list",
     "vk:show": "tsx src/cli.ts show",
     "vk:get": "tsx src/cli.ts get",
-    "vk:unread": "tsx src/cli.ts unread",
     "vk:send": "tsx src/cli.ts send"
   },
   "dependencies": {

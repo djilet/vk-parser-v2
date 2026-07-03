@@ -1,0 +1,23 @@
+{
+  "browserId": 2,
+  "userId": 302347406,
+  "scannedChats": 60,
+  "unreadChats": [
+    {
+      "peerId": -215330425,
+      "peerType": "group",
+      "title": "Женский футбол Нижегородской области",
+      "unreadCount": 1,
+      "lastMessageAt": "2026-06-18T07:53:14.000Z",
+      "conversationFile": "accounts/302347406/-215330425.json"
+    },
+    {
+      "peerId": -179985743,
+      "peerType": "group",
+      "title": "Okko Спорт",
+      "unreadCount": 4,
+      "lastMessageAt": "2026-06-18T07:32:41.000Z",
+      "conversationFile": "accounts/302347406/-179985743.json"
+    }
+  ]
+}

@@ -100,69 +100,6 @@ export async function getHistory(
   });
 }
 
-export async function getFullHistory(
-  accessToken: string,
-  peerId: number,
-  options: {
-    maxMessages?: number;
-    onProgress?: (loaded: number, total: number) => void;
-  } = {},
-): Promise<VkGetHistoryResponse> {
-  const pageSize = 200;
-  const allMessages: VkGetHistoryResponse['items'] = [];
-  const profiles = new Map<number, NonNullable<VkGetHistoryResponse['profiles']>[number]>();
-  const groups = new Map<number, NonNullable<VkGetHistoryResponse['groups']>[number]>();
-
-  let offset = 0;
-  let total = Number.POSITIVE_INFINITY;
-  const maxMessages = options.maxMessages;
-
-  while (offset < total) {
-    const remaining = maxMessages ? maxMessages - allMessages.length : pageSize;
-    if (maxMessages && remaining <= 0) {
-      break;
-    }
-
-    const page = await getHistory(
-      accessToken,
-      peerId,
-      maxMessages ? Math.min(pageSize, remaining) : pageSize,
-      offset,
-    );
-
-    total = page.count;
-    allMessages.push(...page.items);
-    options.onProgress?.(allMessages.length, total);
-
-    for (const profile of page.profiles ?? []) {
-      profiles.set(profile.id, profile);
-    }
-
-    for (const group of page.groups ?? []) {
-      groups.set(group.id, group);
-    }
-
-    if (page.items.length === 0) {
-      break;
-    }
-
-    offset += page.items.length;
-
-    if (offset < total && (!maxMessages || allMessages.length < maxMessages)) {
-      await sleep(400);
-    }
-  }
-
-  allMessages.sort((a, b) => a.date - b.date || a.id - b.id);
-
-  return {
-    count: allMessages.length,
-    items: allMessages,
-    profiles: [...profiles.values()],
-    groups: [...groups.values()],
-  };
-}
-
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

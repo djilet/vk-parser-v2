@@ -1,0 +1,230 @@
+{
+  "generatedAt": "2026-06-18T08:41:45.985Z",
+  "chatLimit": 60,
+  "maxMessages": 200,
+  "accounts": [
+    {
+      "browserId": 1,
+      "userId": 330623582,
+      "email": "anton147147147@mail.ru",
+      "scannedChats": 60,
+      "unreadChats": [
+        {
+          "peerId": 221448197,
+          "peerType": "user",
+          "title": "Даша Шкапа",
+          "unreadCount": 1,
+          "lastMessageAt": "2026-06-18T08:17:54.000Z",
+          "conversationFile": "accounts/330623582/221448197.json"
+        },
+        {
+          "peerId": 100,
+          "peerType": "user",
+          "title": "ВКонтакте",
+          "unreadCount": 8,
+          "lastMessageAt": "2026-06-18T04:23:39.000Z",
+          "conversationFile": "accounts/330623582/100.json"
+        },
+        {
+          "peerId": -62464795,
+          "peerType": "group",
+          "title": "Т-Банк | Работа с клиентами",
+          "unreadCount": 12,
+          "lastMessageAt": "2026-06-16T12:28:54.000Z",
+          "conversationFile": "accounts/330623582/-62464795.json"
+        },
+        {
+          "peerId": -83706647,
+          "peerType": "group",
+          "title": "Додо Пицца Новосибирск",
+          "unreadCount": 48,
+          "lastMessageAt": "2026-06-16T06:14:21.000Z",
+          "conversationFile": "accounts/330623582/-83706647.json"
+        },
+        {
+          "peerId": -193250523,
+          "peerType": "group",
+          "title": "Фотокубик MARY ART",
+          "unreadCount": 45,
+          "lastMessageAt": "2026-06-14T13:15:39.000Z",
+          "conversationFile": "accounts/330623582/-193250523.json"
+        },
+        {
+          "peerId": -157369801,
+          "peerType": "group",
+          "title": "СберКот",
+          "unreadCount": 72,
+          "lastMessageAt": "2026-06-12T11:29:02.000Z",
+          "conversationFile": "accounts/330623582/-157369801.json"
+        },
+        {
+          "peerId": -76623235,
+          "peerType": "group",
+          "title": "Показалось / Дайвинчик Чат",
+          "unreadCount": 3,
+          "lastMessageAt": "2026-06-11T20:28:43.000Z",
+          "conversationFile": "accounts/330623582/-76623235.json"
+        },
+        {
+          "peerId": -211098237,
+          "peerType": "group",
+          "title": "Фрэйз / ex. onephrase",
+          "unreadCount": 10,
+          "lastMessageAt": "2026-06-09T17:51:13.000Z",
+          "conversationFile": "accounts/330623582/-211098237.json"
+        },
+        {
+          "peerId": -158266864,
+          "peerType": "group",
+          "title": "VibeCode",
+          "unreadCount": 2,
+          "lastMessageAt": "2026-06-04T15:33:56.000Z",
+          "conversationFile": "accounts/330623582/-158266864.json"
+        },
+        {
+          "peerId": 2000000166,
+          "peerType": "chat",
+          "title": "Беседа #166",
+          "unreadCount": 2,
+          "lastMessageAt": "2026-05-26T08:41:44.000Z",
+          "conversationFile": "accounts/330623582/2000000166.json"
+        },
+        {
+          "peerId": -201666992,
+          "peerType": "group",
+          "title": "TRUE GAMERS l Новосибирск l Заельцовская",
+          "unreadCount": 2,
+          "lastMessageAt": "2026-05-22T13:03:06.000Z",
+          "conversationFile": "accounts/330623582/-201666992.json"
+        },
+        {
+          "peerId": -141424894,
+          "peerType": "group",
+          "title": "Бот Руди",
+          "unreadCount": 7,
+          "lastMessageAt": "2026-05-13T13:20:04.000Z",
+          "conversationFile": "accounts/330623582/-141424894.json"
+        },
+        {
+          "peerId": -139740824,
+          "peerType": "group",
+          "title": "Бот Лена",
+          "unreadCount": 6,
+          "lastMessageAt": "2026-05-11T15:22:18.000Z",
+          "conversationFile": "accounts/330623582/-139740824.json"
+        },
+        {
+          "peerId": -53484080,
+          "peerType": "group",
+          "title": "Додо Пицца Россия",
+          "unreadCount": 17,
+          "lastMessageAt": "2026-05-01T07:33:24.000Z",
+          "conversationFile": "accounts/330623582/-53484080.json"
+        },
+        {
+          "peerId": 2000000157,
+          "peerType": "chat",
+          "title": "Беседа #157",
+          "unreadCount": 1,
+          "lastMessageAt": "2026-04-14T07:52:18.000Z",
+          "conversationFile": "accounts/330623582/2000000157.json"
+        },
+        {
+          "peerId": -51945689,
+          "peerType": "group",
+          "title": "Пицца Синица | Доставка пиццы Новосибирск",
+          "unreadCount": 41,
+          "lastMessageAt": "2025-12-26T10:37:56.000Z",
+          "conversationFile": "accounts/330623582/-51945689.json"
+        },
+        {
+          "peerId": -132293269,
+          "peerType": "group",
+          "title": "Бесплатные стикеры",
+          "unreadCount": 101,
+          "lastMessageAt": "2025-12-11T11:47:07.000Z",
+          "conversationFile": "accounts/330623582/-132293269.json"
+        },
+        {
+          "peerId": 2000000156,
+          "peerType": "chat",
+          "title": "Беседа #156",
+          "unreadCount": 2,
+          "lastMessageAt": "2025-09-27T10:46:52.000Z",
+          "conversationFile": "accounts/330623582/2000000156.json"
+        },
+        {
+          "peerId": 2000000155,
+          "peerType": "chat",
+          "title": "Беседа #155",
+          "unreadCount": 3,
+          "lastMessageAt": "2025-09-19T07:31:05.000Z",
+          "conversationFile": "accounts/330623582/2000000155.json"
+        },
+        {
+          "peerId": -76477496,
+          "peerType": "group",
+          "title": "ВКонтакте с авторами",
+          "unreadCount": 1,
+          "lastMessageAt": "2025-08-14T14:38:51.000Z",
+          "conversationFile": "accounts/330623582/-76477496.json"
+        },
+        {
+          "peerId": -90924417,
+          "peerType": "group",
+          "title": "CODERED",
+          "unreadCount": 124,
+          "lastMessageAt": "2025-07-28T19:36:47.000Z",
+          "conversationFile": "accounts/330623582/-90924417.json"
+        },
+        {
+          "peerId": -212221031,
+          "peerType": "group",
+          "title": "VK Реклама",
+          "unreadCount": 2,
+          "lastMessageAt": "2025-07-26T17:04:43.000Z",
+          "conversationFile": "accounts/330623582/-212221031.json"
+        },
+        {
+          "peerId": -13163696,
+          "peerType": "group",
+          "title": "Шашлыкоff Новосибирск",
+          "unreadCount": 26,
+          "lastMessageAt": "2025-05-26T05:45:52.000Z",
+          "conversationFile": "accounts/330623582/-13163696.json"
+        },
+        {
+          "peerId": -19542789,
+          "peerType": "group",
+          "title": "ВКонтакте для бизнеса",
+          "unreadCount": 1,
+          "lastMessageAt": "2025-01-23T08:37:34.000Z",
+          "conversationFile": "accounts/330623582/-19542789.json"
+        }
+      ]
+    },
+    {
+      "browserId": 2,
+      "userId": 302347406,
+      "scannedChats": 60,
+      "unreadChats": [
+        {
+          "peerId": -215330425,
+          "peerType": "group",
+          "title": "Женский футбол Нижегородской области",
+          "unreadCount": 1,
+          "lastMessageAt": "2026-06-18T07:53:14.000Z",
+          "conversationFile": "accounts/302347406/-215330425.json"
+        },
+        {
+          "peerId": -179985743,
+          "peerType": "group",
+          "title": "Okko Спорт",
+          "unreadCount": 4,
+          "lastMessageAt": "2026-06-18T07:32:41.000Z",
+          "conversationFile": "accounts/302347406/-179985743.json"
+        }
+      ]
+    }
+  ]
+}

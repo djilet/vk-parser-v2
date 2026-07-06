@@ -139,6 +139,35 @@ export function fetchAccounts(): Promise<Account[]> {
   return apiFetch<Account[]>('/api/accounts');
 }
 
+export function logoutAccount(browserId: number): Promise<{ browserId: number; loggedOut: boolean }> {
+  return apiFetch(`/api/accounts/${browserId}`, { method: 'DELETE' });
+}
+
+export type SetupJobStatus = 'idle' | 'running' | 'succeeded' | 'failed';
+
+export type SetupJobState = {
+  status: SetupJobStatus;
+  error?: string;
+};
+
+export type AccountSetupStatus = {
+  browserId: number;
+  session: SetupJobState;
+  token: SetupJobState;
+};
+
+export function fetchAccountSetupStatus(browserId: number): Promise<AccountSetupStatus> {
+  return apiFetch<AccountSetupStatus>(`/api/accounts/${browserId}/setup`);
+}
+
+export function startAccountSession(browserId: number): Promise<{ browserId: number; started: boolean }> {
+  return apiFetch(`/api/accounts/${browserId}/session`, { method: 'POST' });
+}
+
+export function startAccountToken(browserId: number): Promise<{ browserId: number; started: boolean }> {
+  return apiFetch(`/api/accounts/${browserId}/token`, { method: 'POST' });
+}
+
 export function fetchConversations(
   accountId: number,
   params: ConversationsParams = {},

@@ -1,4 +1,5 @@
 export {
+  clearToken,
   extractTokenFromUrl,
   formatTokenStatus,
   getAccessToken,

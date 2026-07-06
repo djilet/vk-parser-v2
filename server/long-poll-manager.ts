@@ -231,11 +231,12 @@ async function runLongPollLoop(
   accessToken: string,
   signal: AbortSignal,
 ): Promise<void> {
-  let credentials: LongPollServer = await getLongPollServer(accessToken);
+  let credentials: LongPollServer | null = null;
   let errorAttempt = 0;
 
   while (!signal.aborted) {
     try {
+      credentials = await getLongPollServer(accessToken);
       const response = await pollLongPoll(credentials.server, credentials.key, credentials.ts);
 
       if (isLongPollFailed(response)) {
@@ -291,9 +292,14 @@ function startWorker(token: SavedToken & { userId: number }): void {
     token.userId,
     token.accessToken,
     abortController.signal,
-  ).finally(() => {
-    workers.delete(token.userId!);
-  });
+  )
+    .catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Long Poll failed for account ${token.userId}: ${message}`);
+    })
+    .finally(() => {
+      workers.delete(token.userId!);
+    });
 
   workers.set(token.userId, {
     accountId: token.userId,
@@ -306,7 +312,7 @@ function startWorker(token: SavedToken & { userId: number }): void {
   console.log(`Long Poll started for account ${token.userId}`);
 }
 
-function stopWorker(accountId: number): void {
+export function stopAccountLongPoll(accountId: number): void {
   const worker = workers.get(accountId);
   if (!worker) {
     return;
@@ -330,7 +336,7 @@ async function syncAccounts(): Promise<void> {
     const existing = workers.get(token.userId);
 
     if (existing && existing.accessToken !== token.accessToken) {
-      stopWorker(token.userId);
+      stopAccountLongPoll(token.userId);
     }
 
     if (!workers.has(token.userId)) {
@@ -340,9 +346,13 @@ async function syncAccounts(): Promise<void> {
 
   for (const accountId of workers.keys()) {
     if (!activeAccountIds.has(accountId)) {
-      stopWorker(accountId);
+      stopAccountLongPoll(accountId);
     }
   }
+}
+
+export function syncLongPollAccounts(): void {
+  void syncAccounts();
 }
 
 export function startLongPollManager(): void {
@@ -354,6 +364,6 @@ export function startLongPollManager(): void {
 
 export function stopLongPollManager(): void {
   for (const accountId of [...workers.keys()]) {
-    stopWorker(accountId);
+    stopAccountLongPoll(accountId);
   }
 }

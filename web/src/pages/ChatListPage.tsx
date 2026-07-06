@@ -1,7 +1,8 @@
-import { Alert, Badge, Empty, Spin, Tabs, Typography } from 'antd';
+import { Alert, Badge, Button, Empty, Modal, Spin, Tabs, Typography } from 'antd';
+import { LogoutOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchAccounts, fetchChatStatuses, fetchConversations, fetchPinnedConversations, fetchPinnedPeerIds, fetchStatusConversations, setChatPinned, setChatStatus, CHAT_STATUS_OPTIONS, TAGGED_CHAT_STATUSES, type Account, type ChatStatus, type ChatSummary, type SseEvent, type TaggedChatStatus, DEFAULT_CHAT_STATUS } from '../api';
+import { fetchAccounts, fetchChatStatuses, fetchConversations, fetchPinnedConversations, fetchPinnedPeerIds, fetchStatusConversations, logoutAccount, setChatPinned, setChatStatus, CHAT_STATUS_OPTIONS, TAGGED_CHAT_STATUSES, type Account, type ChatStatus, type ChatSummary, type SseEvent, type TaggedChatStatus, DEFAULT_CHAT_STATUS } from '../api';
 import ChatCard, { buildChatList, ChatListEmpty } from '../components/ChatCard';
 import { isAccountActive, TokenSetupAlert } from '../components/TokenSetupAlert';
 import { useSseEvents } from '../context/SseProvider';
@@ -73,6 +74,73 @@ function tabLabel(browserId: number, account: Account | undefined): string {
   return `Токен ${browserId}`;
 }
 
+function getTabBrowserIds(accounts: Account[]): number[] {
+  const usedIds = BROWSER_IDS.filter((id) => accounts.some((account) => account.browserId === id));
+
+  if (usedIds.length === 0) {
+    return [...BROWSER_IDS];
+  }
+
+  const freeId = BROWSER_IDS.find((id) => !usedIds.includes(id));
+  if (freeId !== undefined) {
+    return [...usedIds, freeId];
+  }
+
+  return usedIds;
+}
+
+function renderBrowserTab(
+  browserId: number,
+  account: Account | undefined,
+  state: BrowserChatsState,
+  pinnedPeerIds: number[],
+  pinnedChats: ChatSummary[],
+  chatStatuses: Record<number, ChatStatus>,
+  statusChats: Record<TaggedChatStatus, TaggedStatusChatsState>,
+  activeStatusTab: ChatStatus,
+  handlers: {
+    onStatusTabChange: (status: ChatStatus) => void;
+    onOpenChat: (chat: ChatSummary, accountId: number) => void;
+    onLoadMore: () => void;
+    onTogglePin: (peerId: number, pinned: boolean) => void;
+    onStatusChange: (peerId: number, status: ChatStatus) => void;
+    onSetupComplete: () => void;
+  },
+) {
+  return {
+    key: String(browserId),
+    label: (
+      <Badge count={state.unreadChatCount} offset={[8, -2]} size="small">
+        <span className="chat-list-tab-label">{tabLabel(browserId, account)}</span>
+      </Badge>
+    ),
+    children: account ? (
+      <BrowserTabContent
+        browserId={browserId}
+        account={account}
+        state={state}
+        pinnedPeerIds={pinnedPeerIds}
+        pinnedChats={pinnedChats}
+        chatStatuses={chatStatuses}
+        statusChats={statusChats}
+        activeStatusTab={activeStatusTab}
+        onStatusTabChange={handlers.onStatusTabChange}
+        onOpenChat={handlers.onOpenChat}
+        onLoadMore={handlers.onLoadMore}
+        onTogglePin={handlers.onTogglePin}
+        onStatusChange={handlers.onStatusChange}
+        onSetupComplete={handlers.onSetupComplete}
+      />
+    ) : (
+      <TokenSetupAlert
+        browserId={browserId}
+        variant="missing"
+        onSetupComplete={handlers.onSetupComplete}
+      />
+    ),
+  };
+}
+
 function hasMoreChats(batchSize: number, offset: number, total: number | undefined): boolean {
   const nextOffset = offset + batchSize;
 
@@ -105,9 +173,10 @@ function BrowserTabContent({
   onLoadMore,
   onTogglePin,
   onStatusChange,
+  onSetupComplete,
 }: {
   browserId: number;
-  account: Account | undefined;
+  account: Account;
   state: BrowserChatsState;
   pinnedPeerIds: number[];
   pinnedChats: ChatSummary[];
@@ -119,6 +188,7 @@ function BrowserTabContent({
   onLoadMore: () => void;
   onTogglePin: (peerId: number, pinned: boolean) => void;
   onStatusChange: (peerId: number, status: ChatStatus) => void;
+  onSetupComplete?: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -149,16 +219,16 @@ function BrowserTabContent({
     return () => observer.disconnect();
   }, [isInitialTab, state.loaded, state.hasMore, state.loading, state.loadingMore, state.chats.length, onLoadMore]);
 
-  if (!account?.userId) {
-    return <TokenSetupAlert browserId={browserId} variant="missing" />;
+  if (!account.userId) {
+    return <TokenSetupAlert browserId={browserId} variant="missing" onSetupComplete={onSetupComplete} />;
   }
 
   if (account.needsSession) {
-    return <TokenSetupAlert browserId={browserId} variant="invalid" />;
+    return <TokenSetupAlert browserId={browserId} variant="invalid" onSetupComplete={onSetupComplete} />;
   }
 
   if (account.expired) {
-    return <TokenSetupAlert browserId={browserId} variant="expired" />;
+    return <TokenSetupAlert browserId={browserId} variant="expired" onSetupComplete={onSetupComplete} />;
   }
 
   if (isInitialTab) {
@@ -296,6 +366,8 @@ export default function ChatListPage() {
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [activeBrowserId, setActiveBrowserId] = useState<number>(1);
+  const [loggingOutBrowserId, setLoggingOutBrowserId] = useState<number | null>(null);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const [chatsByBrowser, setChatsByBrowser] = useState<Record<number, BrowserChatsState>>({
     1: emptyBrowserState(),
     2: emptyBrowserState(),
@@ -441,6 +513,16 @@ export default function ChatListPage() {
 
   useSseEvents(handleSseEvent);
 
+  const reloadAccounts = useCallback(async () => {
+    try {
+      const list = await fetchAccounts();
+      setAccounts(list);
+      setAccountsError(null);
+    } catch (err) {
+      setAccountsError(err instanceof Error ? err.message : 'Failed to load accounts');
+    }
+  }, []);
+
   useEffect(() => {
     void (async () => {
       try {
@@ -489,6 +571,28 @@ export default function ChatListPage() {
       }),
     );
   }, [accounts, accountsLoading, refreshUnreadCount]);
+
+  useEffect(() => {
+    if (accountsLoading) {
+      return;
+    }
+
+    const tabIds = getTabBrowserIds(accounts);
+    if (tabIds.length === 0) {
+      return;
+    }
+
+    if (!tabIds.includes(activeBrowserId)) {
+      setActiveBrowserId(tabIds[0]);
+    }
+  }, [accounts, accountsLoading, activeBrowserId]);
+
+  useEffect(() => {
+    const account = accounts.find((entry) => entry.browserId === activeBrowserId);
+    if (!isAccountActive(account)) {
+      setLogoutModalOpen(false);
+    }
+  }, [accounts, activeBrowserId]);
 
   useEffect(() => {
     const totalUnread = BROWSER_IDS.reduce(
@@ -830,13 +934,77 @@ export default function ChatListPage() {
     navigate(`/chat/${chat.peerId}?${params}`);
   }
 
+  const handleLogout = useCallback(async (browserId: number) => {
+    setLoggingOutBrowserId(browserId);
+
+    try {
+      await logoutAccount(browserId);
+      const list = await fetchAccounts();
+      setAccounts(list);
+
+      setChatsByBrowser((prev) => ({ ...prev, [browserId]: emptyBrowserState() }));
+      setPinnedPeerIdsByBrowser((prev) => ({ ...prev, [browserId]: [] }));
+      setPinnedChatsByBrowser((prev) => ({ ...prev, [browserId]: [] }));
+      setChatStatusesByBrowser((prev) => ({ ...prev, [browserId]: {} }));
+      setStatusChatsByBrowser((prev) => ({ ...prev, [browserId]: emptyTaggedStatusChatsState() }));
+
+      setActiveBrowserId((prev) => {
+        if (list.some((entry) => entry.browserId === prev)) {
+          return prev;
+        }
+
+        return list[0]?.browserId ?? getTabBrowserIds(list)[0] ?? 1;
+      });
+    } catch (err) {
+      setAccountsError(err instanceof Error ? err.message : 'Failed to log out');
+    } finally {
+      setLoggingOutBrowserId(null);
+    }
+  }, []);
+
+  const activeTabAccount = accounts.find((entry) => entry.browserId === activeBrowserId);
+  const canLogout = isAccountActive(activeTabAccount);
+
+  async function handleConfirmLogout() {
+    await handleLogout(activeBrowserId);
+    setLogoutModalOpen(false);
+  }
+
   return (
     <div className="chat-list">
+      <Modal
+        title="Выйти из аккаунта?"
+        open={logoutModalOpen}
+        okText="Выйти"
+        cancelText="Отмена"
+        okButtonProps={{ danger: true }}
+        confirmLoading={loggingOutBrowserId === activeBrowserId}
+        onCancel={() => setLogoutModalOpen(false)}
+        onOk={() => handleConfirmLogout()}
+      >
+        Токен будет удалён, вкладка исчезнет из списка.
+      </Modal>
+
       <div className="chat-list-header">
         <Typography.Title level={3} style={{ margin: 0 }}>
           Чаты
         </Typography.Title>
-        <ThemeSwitcher />
+        <div className="chat-list-header-actions">
+          <Button
+            danger
+            size="small"
+            icon={<LogoutOutlined />}
+            disabled={!canLogout}
+            onClick={() => {
+              if (canLogout) {
+                setLogoutModalOpen(true);
+              }
+            }}
+          >
+            Выйти
+          </Button>
+          <ThemeSwitcher />
+        </div>
       </div>
 
       {accountsError && (
@@ -851,38 +1019,27 @@ export default function ChatListPage() {
         <Tabs
           activeKey={String(activeBrowserId)}
           onChange={(key) => setActiveBrowserId(Number(key))}
-          items={BROWSER_IDS.map((browserId) => {
-            const account = accounts.find((entry) => entry.browserId === browserId);
-            const state = chatsByBrowser[browserId];
-
-            return {
-              key: String(browserId),
-              label: (
-                <Badge count={state.unreadChatCount} offset={[8, -2]} size="small">
-                  <span className="chat-list-tab-label">{tabLabel(browserId, account)}</span>
-                </Badge>
-              ),
-              children: (
-                <BrowserTabContent
-                  browserId={browserId}
-                  account={account}
-                  state={state}
-                  pinnedPeerIds={pinnedPeerIdsByBrowser[browserId]}
-                  pinnedChats={pinnedChatsByBrowser[browserId]}
-                  chatStatuses={chatStatusesByBrowser[browserId] ?? {}}
-                  statusChats={statusChatsByBrowser[browserId] ?? emptyTaggedStatusChatsState()}
-                  activeStatusTab={activeStatusByBrowser[browserId] ?? DEFAULT_CHAT_STATUS}
-                  onStatusTabChange={(status) =>
-                    setActiveStatusByBrowser((prev) => ({ ...prev, [browserId]: status }))
-                  }
-                  onOpenChat={openChat}
-                  onLoadMore={() => handleLoadMore(browserId)}
-                  onTogglePin={(peerId, pinned) => void handleTogglePin(browserId, peerId, pinned)}
-                  onStatusChange={(peerId, status) => void handleStatusChange(browserId, peerId, status)}
-                />
-              ),
-            };
-          })}
+          items={getTabBrowserIds(accounts).map((browserId) =>
+            renderBrowserTab(
+              browserId,
+              accounts.find((entry) => entry.browserId === browserId),
+              chatsByBrowser[browserId] ?? emptyBrowserState(),
+              pinnedPeerIdsByBrowser[browserId] ?? [],
+              pinnedChatsByBrowser[browserId] ?? [],
+              chatStatusesByBrowser[browserId] ?? {},
+              statusChatsByBrowser[browserId] ?? emptyTaggedStatusChatsState(),
+              activeStatusByBrowser[browserId] ?? DEFAULT_CHAT_STATUS,
+              {
+                onStatusTabChange: (status) =>
+                  setActiveStatusByBrowser((prev) => ({ ...prev, [browserId]: status })),
+                onOpenChat: openChat,
+                onLoadMore: () => handleLoadMore(browserId),
+                onTogglePin: (peerId, pinned) => void handleTogglePin(browserId, peerId, pinned),
+                onStatusChange: (peerId, status) => void handleStatusChange(browserId, peerId, status),
+                onSetupComplete: () => void reloadAccounts(),
+              },
+            ),
+          )}
         />
       )}
     </div>

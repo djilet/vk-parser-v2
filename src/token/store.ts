@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { type BrowserId, BROWSER_IDS, getBrowserPaths } from '../config.js';
 
@@ -145,6 +145,21 @@ export async function markTokenNeedsSession(browserId: BrowserId): Promise<void>
   }
 
   await saveToken({ ...current, browserId, needsSession: true });
+}
+
+export async function clearToken(browserId: BrowserId): Promise<boolean> {
+  const { tokenFile } = getBrowserPaths(browserId);
+
+  try {
+    await unlink(tokenFile);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+
+    throw error;
+  }
 }
 
 export async function loadToken(browserId: BrowserId): Promise<SavedToken | null> {

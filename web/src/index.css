@@ -40,19 +40,75 @@ body {
   margin-top: 8px;
 }
 
-.token-setup-commands code {
-  display: block;
+.token-setup-command-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
   padding: 8px 12px;
+  border: 1px solid transparent;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.token-setup-command-btn:hover:not(:disabled) {
+  border-color: #4096ff;
+  background: rgba(22, 119, 255, 0.08);
+}
+
+.token-setup-command-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.token-setup-command-btn code {
+  display: block;
+  flex: 1;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 13px;
   white-space: pre-wrap;
   word-break: break-all;
+  background: transparent;
+  padding: 0;
 }
 
-[data-theme='dark'] .token-setup-commands code {
+.token-setup-hint {
+  margin-top: 8px;
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 13px;
+}
+
+.token-setup-error {
+  margin-top: 8px;
+  color: #ff4d4f;
+  font-size: 13px;
+}
+
+[data-theme='dark'] .token-setup-command-btn {
   background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] .token-setup-command-btn:hover:not(:disabled) {
+  border-color: #4096ff;
+  background: rgba(22, 119, 255, 0.16);
+}
+
+[data-theme='dark'] .token-setup-hint {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.chat-list-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .chat-list-tab-label {

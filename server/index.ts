@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
-import { getTokenByUserId, isTokenExpired, loadAllTokens, markTokenNeedsSession, type SavedToken } from '../src/token/index.js';
+import { parseBrowserId, type BrowserId } from '../src/config.js';
+import { clearToken, getTokenByUserId, isTokenExpired, loadAllTokens, loadToken, markTokenNeedsSession, type SavedToken } from '../src/token/index.js';
 import { loadChatStatuses, loadPeerIdsByStatus, setChatStatus } from '../src/chat-status/store.js';
 import { ChatStatus, isChatStatus } from '../src/chat-status/types.js';
 import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
@@ -10,7 +11,8 @@ import { enrichConversationItemsWithLastMessages } from '../src/vk/enrich-conver
 import { formatMessages } from '../src/vk/message-format.js';
 import { suggestReply, type ChatMessageForSuggestion } from '../src/ollama/suggest-reply.js';
 import { eventBus } from './event-bus.js';
-import { startLongPollManager } from './long-poll-manager.js';
+import { getAccountSetupStatus, startSessionSetup, startTokenSetup } from './account-setup.js';
+import { startLongPollManager, stopAccountLongPoll } from './long-poll-manager.js';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const DEFAULT_CHAT_LIMIT = 20;
@@ -24,7 +26,7 @@ function sendJson(res: ServerResponse, status: number, data: unknown): void {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   });
   res.end(JSON.stringify(data));
@@ -106,21 +108,78 @@ function parseConversationFilter(value: string | null): VkConversationFilter {
 }
 
 async function resolveTokenStatus(token: SavedToken): Promise<{ expired: boolean; needsSession: boolean }> {
-  const expired = isTokenExpired(token);
+  try {
+    const expired = isTokenExpired(token);
 
-  if (token.needsSession) {
-    return { expired, needsSession: true };
-  }
-
-  if (!expired && token.userId && token.accessToken) {
-    const valid = await isAccessTokenValid(token.accessToken, token.userId);
-    if (!valid) {
-      await markTokenNeedsSession(token.browserId);
+    if (token.needsSession) {
       return { expired, needsSession: true };
     }
+
+    if (!expired && token.userId && token.accessToken) {
+      const valid = await isAccessTokenValid(token.accessToken, token.userId);
+      if (!valid) {
+        await markTokenNeedsSession(token.browserId);
+        return { expired, needsSession: true };
+      }
+    }
+
+    return { expired, needsSession: false };
+  } catch {
+    return { expired: isTokenExpired(token), needsSession: true };
+  }
+}
+
+async function handleLogoutAccount(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  browserId: BrowserId,
+): Promise<void> {
+  const token = await loadToken(browserId);
+
+  if (token?.userId) {
+    stopAccountLongPoll(token.userId);
   }
 
-  return { expired, needsSession: false };
+  await clearToken(browserId);
+  sendJson(res, 200, { browserId, loggedOut: true });
+}
+
+async function handleGetAccountSetup(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  browserId: BrowserId,
+): Promise<void> {
+  sendJson(res, 200, { browserId, ...getAccountSetupStatus(browserId) });
+}
+
+async function handleStartAccountSession(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  browserId: BrowserId,
+): Promise<void> {
+  const result = startSessionSetup(browserId);
+
+  if (!result.started) {
+    sendJson(res, 409, { error: result.error ?? 'Session setup is already running' });
+    return;
+  }
+
+  sendJson(res, 202, { browserId, started: true });
+}
+
+async function handleStartAccountToken(
+  _req: IncomingMessage,
+  res: ServerResponse,
+  browserId: BrowserId,
+): Promise<void> {
+  const result = startTokenSetup(browserId);
+
+  if (!result.started) {
+    sendJson(res, 409, { error: result.error ?? 'Token setup is already running' });
+    return;
+  }
+
+  sendJson(res, 202, { browserId, started: true });
 }
 
 async function handleAccounts(_req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -456,7 +515,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     });
     res.end();
@@ -474,6 +533,34 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
     if (req.method === 'GET' && pathname === '/api/accounts') {
       await handleAccounts(req, res);
+      return;
+    }
+
+    const accountSetupMatch = pathname.match(/^\/api\/accounts\/(\d+)\/(setup|session|token)$/);
+    if (accountSetupMatch) {
+      const browserId = parseBrowserId(accountSetupMatch[1]);
+      const action = accountSetupMatch[2];
+
+      if (action === 'setup' && req.method === 'GET') {
+        await handleGetAccountSetup(req, res, browserId);
+        return;
+      }
+
+      if (action === 'session' && req.method === 'POST') {
+        await handleStartAccountSession(req, res, browserId);
+        return;
+      }
+
+      if (action === 'token' && req.method === 'POST') {
+        await handleStartAccountToken(req, res, browserId);
+        return;
+      }
+    }
+
+    const accountLogoutMatch = pathname.match(/^\/api\/accounts\/(\d+)$/);
+    if (accountLogoutMatch && req.method === 'DELETE') {
+      const browserId = parseBrowserId(accountLogoutMatch[1]);
+      await handleLogoutAccount(req, res, browserId);
       return;
     }
 

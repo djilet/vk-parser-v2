@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 
 export const VKHOST_URL = 'https://vkhost.github.io/';
+export const VK_LOGIN_URL = 'https://vk.com/';
 
 export const DEFAULT_APP_NAME = 'vk.com';
 export const DEFAULT_APP_ID = 6287487;

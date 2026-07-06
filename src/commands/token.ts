@@ -23,7 +23,11 @@ export async function runTokenCommand(
   console.log(`Браузер #${config.browserId}`);
   console.log(`Открываю vkhost.github.io, приложение: ${config.appName} (${appId})`);
 
-  const browser = await launchBrowser({ headless: options.headless ?? false, paths: config.paths });
+  const browser = await launchBrowser({
+    headless: options.headless ?? false,
+    paths: config.paths,
+    browserId: config.browserId,
+  });
   const page = (await browser.pages())[0] ?? (await browser.newPage());
 
   try {

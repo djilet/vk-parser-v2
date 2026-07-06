@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { runSessionCommand } from './commands/session.js';
 import { runTokenCommand, runAllTokensCommand } from './commands/token.js';
+import { runTokenAutoCommand } from './commands/token-auto.js';
 import { runGetTokenCommand, runListTokensCommand, runShowTokenCommand } from './commands/tokens.js';
 import { parseAccountId, parsePeerId, runSendMessageCommand } from './commands/send.js';
 import { parseBrowserId } from './config.js';
@@ -47,6 +48,18 @@ program
   .action(async () => {
     try {
       await runAllTokensCommand();
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('token-auto')
+  .description('Обновить токены, которым исполнилось 23ч 59м 59с')
+  .action(async () => {
+    try {
+      await runTokenAutoCommand();
     } catch (error) {
       console.error(error instanceof Error ? error.message : error);
       process.exit(1);

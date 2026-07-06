@@ -19,6 +19,7 @@ export type Account = {
   lastName?: string;
   browserId: number;
   expired: boolean;
+  needsSession: boolean;
 };
 
 export type LastMessage = {

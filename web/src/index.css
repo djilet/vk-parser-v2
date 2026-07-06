@@ -33,6 +33,28 @@ body {
   margin-bottom: 16px;
 }
 
+.token-setup-commands {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.token-setup-commands code {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+[data-theme='dark'] .token-setup-commands code {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .chat-list-tab-label {
   padding-right: 8px;
 }

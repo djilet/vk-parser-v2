@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchAccounts, fetchChatStatuses, fetchConversations, fetchPinnedConversations, fetchPinnedPeerIds, fetchStatusConversations, setChatPinned, setChatStatus, CHAT_STATUS_OPTIONS, TAGGED_CHAT_STATUSES, type Account, type ChatStatus, type ChatSummary, type SseEvent, type TaggedChatStatus, DEFAULT_CHAT_STATUS } from '../api';
 import ChatCard, { buildChatList, ChatListEmpty } from '../components/ChatCard';
+import { isAccountActive, TokenSetupAlert } from '../components/TokenSetupAlert';
 import { useSseEvents } from '../context/SseProvider';
 import { ThemeSwitcher } from '../context/ThemeProvider';
 import { countUnreadChatsByStatus, filterInitialChats, filterPinnedForStatus, findBrowserIdForAccount, isTaggedChatStatus, removeChatByPeerId, resolveChatStatus, upsertChat, upsertPinnedChat } from '../utils/chats';
@@ -149,25 +150,15 @@ function BrowserTabContent({
   }, [isInitialTab, state.loaded, state.hasMore, state.loading, state.loadingMore, state.chats.length, onLoadMore]);
 
   if (!account?.userId) {
-    return (
-      <Alert
-        type="warning"
-        showIcon
-        message="Токен не найден"
-        description={`Получите токен: npm run vk:token -- --browser ${browserId}`}
-      />
-    );
+    return <TokenSetupAlert browserId={browserId} variant="missing" />;
+  }
+
+  if (account.needsSession) {
+    return <TokenSetupAlert browserId={browserId} variant="invalid" />;
   }
 
   if (account.expired) {
-    return (
-      <Alert
-        type="warning"
-        showIcon
-        message="Токен истёк"
-        description={`Обновите токен: npm run vk:token -- --browser ${browserId}`}
-      />
-    );
+    return <TokenSetupAlert browserId={browserId} variant="expired" />;
   }
 
   if (isInitialTab) {
@@ -341,7 +332,7 @@ export default function ChatListPage() {
   chatStatusesRef.current = chatStatusesByBrowser;
 
   const refreshUnreadCount = useCallback(async (browserId: number, account: Account) => {
-    if (!account.userId || account.expired) {
+    if (!isAccountActive(account)) {
       setChatsByBrowser((prev) => ({
         ...prev,
         [browserId]: {
@@ -458,7 +449,7 @@ export default function ChatListPage() {
 
         const firstActive = BROWSER_IDS.find((browserId) => {
           const account = list.find((entry) => entry.browserId === browserId);
-          return account?.userId && !account.expired;
+          return isAccountActive(account);
         });
 
         if (firstActive && !initialTabSetRef.current) {
@@ -480,7 +471,7 @@ export default function ChatListPage() {
 
     for (const browserId of BROWSER_IDS) {
       const account = accounts.find((entry) => entry.browserId === browserId);
-      if (!account?.userId || account.expired) {
+      if (!isAccountActive(account)) {
         setChatsByBrowser((prev) => ({
           ...prev,
           [browserId]: emptyBrowserState(),
@@ -510,7 +501,7 @@ export default function ChatListPage() {
 
   const loadPinnedChats = useCallback(async (browserId: number) => {
     const account = accounts.find((entry) => entry.browserId === browserId);
-    if (!account?.userId || account.expired) {
+    if (!isAccountActive(account)) {
       setPinnedPeerIdsByBrowser((prev) => ({ ...prev, [browserId]: [] }));
       setPinnedChatsByBrowser((prev) => ({ ...prev, [browserId]: [] }));
       return;
@@ -538,7 +529,7 @@ export default function ChatListPage() {
 
   const loadChatStatuses = useCallback(async (browserId: number) => {
     const account = accounts.find((entry) => entry.browserId === browserId);
-    if (!account?.userId || account.expired) {
+    if (!isAccountActive(account)) {
       setChatStatusesByBrowser((prev) => ({ ...prev, [browserId]: {} }));
       return;
     }
@@ -561,7 +552,7 @@ export default function ChatListPage() {
     }
 
     const account = accounts.find((entry) => entry.browserId === browserId);
-    if (!account?.userId || account.expired) {
+    if (!isAccountActive(account)) {
       setStatusChatsByBrowser((prev) => ({
         ...prev,
         [browserId]: {
@@ -652,7 +643,7 @@ export default function ChatListPage() {
     }
 
     const account = accounts.find((entry) => entry.browserId === browserId);
-    if (!account?.userId || account.expired) {
+    if (!isAccountActive(account)) {
       return;
     }
 

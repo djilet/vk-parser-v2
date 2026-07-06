@@ -16,6 +16,7 @@ export class VkApiError extends Error {
 }
 
 const FLOOD_CONTROL_CODE = 9;
+const AUTH_FAILED_CODE = 5;
 const MAX_RETRIES = 5;
 
 async function vkRequest<T>(method: string, accessToken: string, params: VkParams): Promise<T> {
@@ -112,6 +113,19 @@ export async function getUsers(accessToken: string, userIds: number[]): Promise<
   return vkRequest<NonNullable<VkGetHistoryResponse['profiles']>>('users.get', accessToken, {
     user_ids: userIds.join(','),
   });
+}
+
+export async function isAccessTokenValid(accessToken: string, userId: number): Promise<boolean> {
+  try {
+    await getUsers(accessToken, [userId]);
+    return true;
+  } catch (error) {
+    if (error instanceof VkApiError && error.code === AUTH_FAILED_CODE) {
+      return false;
+    }
+
+    return true;
+  }
 }
 
 export async function sendMessage(

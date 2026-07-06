@@ -1,10 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
-import { getTokenByUserId, isTokenExpired, loadAllTokens } from '../src/token/index.js';
+import { getTokenByUserId, isTokenExpired, loadAllTokens, markTokenNeedsSession, type SavedToken } from '../src/token/index.js';
 import { loadChatStatuses, loadPeerIdsByStatus, setChatStatus } from '../src/chat-status/store.js';
 import { ChatStatus, isChatStatus } from '../src/chat-status/types.js';
 import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
-import { getConversations, getConversationsById, getHistory, getUsers, markPeerAsRead, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
+import { getConversations, getConversationsById, getHistory, getUsers, isAccessTokenValid, markPeerAsRead, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
 import { mapConversationToSummary, sortChatsForDisplay } from '../src/vk/conversation-summary.js';
 import { enrichConversationItemsWithLastMessages } from '../src/vk/enrich-conversations.js';
 import { formatMessages } from '../src/vk/message-format.js';
@@ -105,9 +105,28 @@ function parseConversationFilter(value: string | null): VkConversationFilter {
   return filter;
 }
 
+async function resolveTokenStatus(token: SavedToken): Promise<{ expired: boolean; needsSession: boolean }> {
+  const expired = isTokenExpired(token);
+
+  if (token.needsSession) {
+    return { expired, needsSession: true };
+  }
+
+  if (!expired && token.userId && token.accessToken) {
+    const valid = await isAccessTokenValid(token.accessToken, token.userId);
+    if (!valid) {
+      await markTokenNeedsSession(token.browserId);
+      return { expired, needsSession: true };
+    }
+  }
+
+  return { expired, needsSession: false };
+}
+
 async function handleAccounts(_req: IncomingMessage, res: ServerResponse): Promise<void> {
   const tokens = await loadAllTokens();
-  const activeTokens = tokens.filter((token) => token.userId && !isTokenExpired(token));
+  const statuses = await Promise.all(tokens.map((token) => resolveTokenStatus(token)));
+  const activeTokens = tokens.filter((token, index) => token.userId && !statuses[index].expired && !statuses[index].needsSession);
   const profilesById = new Map<number, { first_name: string; last_name: string }>();
 
   if (activeTokens.length > 0) {
@@ -129,8 +148,9 @@ async function handleAccounts(_req: IncomingMessage, res: ServerResponse): Promi
   sendJson(
     res,
     200,
-    tokens.map((token) => {
+    tokens.map((token, index) => {
       const profile = token.userId ? profilesById.get(token.userId) : undefined;
+      const status = statuses[index];
 
       return {
         userId: token.userId,
@@ -138,7 +158,8 @@ async function handleAccounts(_req: IncomingMessage, res: ServerResponse): Promi
         firstName: profile?.first_name,
         lastName: profile?.last_name,
         browserId: token.browserId,
-        expired: isTokenExpired(token),
+        expired: status.expired,
+        needsSession: status.needsSession,
       };
     }),
   );

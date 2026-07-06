@@ -10,8 +10,12 @@ export type SavedToken = {
   userId?: number;
   email?: string;
   appId?: number;
-  savedAt: string;
+  savedAt?: string;
+  needsSession?: boolean;
 };
+
+/** Refresh tokens proactively 1 second before the 24h VK lifetime. */
+export const TOKEN_REFRESH_AFTER_MS = 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000;
 
 export function extractTokenFromUrl(url: string): Omit<SavedToken, 'savedAt' | 'browserId'> | null {
   const hashMatch = url.match(/access_token=([^&]+)/);
@@ -47,6 +51,40 @@ function buildSavedToken(
       (token.expiresIn ? new Date(Date.now() + token.expiresIn * 1000).toISOString() : undefined),
     savedAt,
   };
+}
+
+export function getTokenCreationTime(token: SavedToken, now = Date.now()): number {
+  if (token.savedAt) {
+    const savedAt = Date.parse(token.savedAt);
+    if (!Number.isNaN(savedAt)) {
+      return savedAt;
+    }
+  }
+
+  if (token.expiresAt) {
+    const expiresAt = Date.parse(token.expiresAt);
+    if (!Number.isNaN(expiresAt)) {
+      const expiresIn = token.expiresIn ?? 86_400;
+      return expiresAt - expiresIn * 1000;
+    }
+  }
+
+  return now;
+}
+
+export function isTokenRefreshDue(token: SavedToken, now = Date.now()): boolean {
+  return now - getTokenCreationTime(token, now) >= TOKEN_REFRESH_AFTER_MS;
+}
+
+export async function ensureTokenSavedAt(token: SavedToken): Promise<SavedToken> {
+  if (token.savedAt && !Number.isNaN(Date.parse(token.savedAt))) {
+    return token;
+  }
+
+  const savedAt = new Date(getTokenCreationTime(token)).toISOString();
+  const updated = { ...token, savedAt };
+  await saveToken(updated);
+  return updated;
 }
 
 async function readJsonFile<T>(filePath: string): Promise<T | null> {
@@ -93,9 +131,20 @@ export async function saveToken(token: SavedToken): Promise<SavedToken> {
 
 export async function saveTokenForBrowser(
   browserId: BrowserId,
-  token: Omit<SavedToken, 'savedAt' | 'browserId'>,
+  token: Omit<SavedToken, 'savedAt' | 'browserId' | 'needsSession'>,
 ): Promise<SavedToken> {
   return saveToken(buildSavedToken(browserId, token));
+}
+
+export async function markTokenNeedsSession(browserId: BrowserId): Promise<void> {
+  const { tokenFile } = getBrowserPaths(browserId);
+  const current = await readJsonFile<SavedToken>(tokenFile);
+
+  if (!current?.accessToken || current.needsSession) {
+    return;
+  }
+
+  await saveToken({ ...current, browserId, needsSession: true });
 }
 
 export async function loadToken(browserId: BrowserId): Promise<SavedToken | null> {
@@ -103,7 +152,8 @@ export async function loadToken(browserId: BrowserId): Promise<SavedToken | null
   const current = await readJsonFile<SavedToken>(tokenFile);
 
   if (current?.accessToken) {
-    return { ...current, browserId };
+    const token = { ...current, browserId };
+    return ensureTokenSavedAt(token);
   }
 
   return migrateLegacyToken(browserId);

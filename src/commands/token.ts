@@ -9,14 +9,21 @@ import {
   waitForOAuthPage,
 } from '../vkhost/auth-flow.js';
 
-export async function runTokenCommand(browserId: BrowserId): Promise<void> {
+export type TokenCommandOptions = {
+  headless?: boolean;
+};
+
+export async function runTokenCommand(
+  browserId: BrowserId,
+  options: TokenCommandOptions = {},
+): Promise<void> {
   const config = loadConfig(browserId);
   const appId = config.appId ?? VK_COM_APP_ID;
 
   console.log(`Браузер #${config.browserId}`);
   console.log(`Открываю vkhost.github.io, приложение: ${config.appName} (${appId})`);
 
-  const browser = await launchBrowser({ headless: false, paths: config.paths });
+  const browser = await launchBrowser({ headless: options.headless ?? false, paths: config.paths });
   const page = (await browser.pages())[0] ?? (await browser.newPage());
 
   try {

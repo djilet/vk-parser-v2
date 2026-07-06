@@ -6,6 +6,7 @@ export {
   isTokenExpired,
   loadAllTokens,
   loadToken,
+  markTokenNeedsSession,
   saveToken,
   saveTokenForBrowser,
   type SavedToken,

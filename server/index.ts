@@ -174,10 +174,11 @@ async function handleConversations(req: IncomingMessage, res: ServerResponse): P
   const token = await getTokenByUserId(accountId);
 
   const data = await getConversations(token.accessToken, limit, offset, filter);
+  const enrichedItems = await enrichConversationItemsWithLastMessages(token.accessToken, data.items);
   const profiles = data.profiles ?? [];
   const groups = data.groups ?? [];
 
-  const chats = data.items.map((item) => mapConversationToSummary(item, profiles, groups));
+  const chats = enrichedItems.map((item) => mapConversationToSummary(item, profiles, groups));
 
   sendJson(res, 200, { accountId, chats, total: data.count, offset, limit, filter });
 }

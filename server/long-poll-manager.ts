@@ -1,6 +1,7 @@
 import { isTokenExpired, loadAllTokens, type SavedToken } from '../src/token/index.js';
 import { getConversationsById, getLongPollServer, getUsers, type LongPollServer } from '../src/vk/api.js';
 import { mapConversationToSummary, type ChatSummaryData } from '../src/vk/conversation-summary.js';
+import { enrichConversationItemWithLastMessage } from '../src/vk/enrich-conversations.js';
 import type { ParsedNewMessage } from '../src/vk/long-poll.js';
 import { formatMessage } from '../src/vk/message-format.js';
 import {
@@ -115,7 +116,8 @@ async function refreshPeerConversation(
     return;
   }
 
-  const chat = mapConversationToSummary(item, data.profiles ?? [], data.groups ?? []);
+  const enrichedItem = await enrichConversationItemWithLastMessage(accessToken, item);
+  const chat = mapConversationToSummary(enrichedItem, data.profiles ?? [], data.groups ?? []);
   eventBus.emit({ type: 'chat.updated', accountId, chat });
 }
 
@@ -138,13 +140,14 @@ async function handleNewMessage(
     const item = data.items[0];
 
     if (item) {
+      const enrichedItem = await enrichConversationItemWithLastMessage(accessToken, item);
       const chat = mergeChatSummary(
-        mapConversationToSummary(item, data.profiles ?? [], data.groups ?? []),
+        mapConversationToSummary(enrichedItem, data.profiles ?? [], data.groups ?? []),
         longPollLastMessage,
       );
       eventBus.emit({ type: 'chat.updated', accountId, chat });
 
-      const lastMessage = item.last_message;
+      const lastMessage = enrichedItem.last_message;
       if (lastMessage && lastMessage.id === parsed.messageId) {
         formattedMessage = formatMessage(lastMessage);
       }

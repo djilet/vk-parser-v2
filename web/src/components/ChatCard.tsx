@@ -42,7 +42,11 @@ export default function ChatCard({
   onTogglePin,
   onStatusChange,
 }: ChatCardProps) {
-  const lastText = chat.lastMessage ? formatLastMessage(chat.lastMessage.text) : 'Нет сообщений';
+  const lastText = chat.lastMessage
+    ? formatLastMessage(chat.lastMessage.text)
+    : chat.unreadCount > 0
+      ? 'Новое сообщение'
+      : 'Нет сообщений';
   const prefix = chat.lastMessage?.out ? 'Вы: ' : '';
 
   return (

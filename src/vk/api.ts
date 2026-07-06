@@ -91,6 +91,7 @@ export async function getHistory(
   peerId: number,
   count: number,
   offset: number,
+  startCmid?: number,
 ): Promise<VkGetHistoryResponse> {
   return vkRequest<VkGetHistoryResponse>('messages.getHistory', accessToken, {
     peer_id: peerId,
@@ -98,6 +99,7 @@ export async function getHistory(
     offset,
     extended: 1,
     rev: 0,
+    start_cmid: startCmid,
   });
 }
 

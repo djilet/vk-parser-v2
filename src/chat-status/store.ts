@@ -64,6 +64,15 @@ export async function loadChatStatuses(accountId: number): Promise<Record<number
   return parseStatuses(file.statuses);
 }
 
+export async function loadPeerIdsByStatus(accountId: number, status: ChatStatus): Promise<number[]> {
+  const statuses = await loadChatStatuses(accountId);
+
+  return Object.entries(statuses)
+    .filter(([, entryStatus]) => entryStatus === status)
+    .map(([peerIdKey]) => Number(peerIdKey))
+    .filter((peerId) => Number.isInteger(peerId) && peerId !== 0);
+}
+
 export async function getChatStatus(accountId: number, peerId: number): Promise<ChatStatus> {
   const statuses = await loadChatStatuses(accountId);
   return statuses[peerId] ?? DEFAULT_CHAT_STATUS;

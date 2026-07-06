@@ -39,12 +39,27 @@ body {
 
 .chat-list .ant-tabs-content-holder,
 .chat-list .ant-tabs-content,
-.chat-list .ant-tabs-tabpane-active {
+.chat-list .ant-tabs-tabpane-active,
+.chat-status-tabs .ant-tabs-content-holder,
+.chat-status-tabs .ant-tabs-content,
+.chat-status-tabs .ant-tabs-tabpane-active {
   overflow: visible;
 }
 
+.chat-status-tabs {
+  margin-bottom: 4px;
+}
+
+.chat-status-tabs .ant-tabs-nav {
+  margin-bottom: 8px;
+}
+
+.chat-status-tab-label {
+  padding-right: 8px;
+}
+
 .chat-list-panel {
-  max-height: calc(100vh - 180px);
+  max-height: calc(100vh - 230px);
   overflow-y: auto;
   padding: 12px 2px 12px;
 }
@@ -295,8 +310,23 @@ body {
 }
 
 [data-theme='dark'] .message-bubble {
-  background: #262626;
-  border-color: #303030;
+  background: #303030;
+  border-color: #424242;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+[data-theme='dark'] .message-bubble a {
+  color: #69b1ff;
+}
+
+[data-theme='dark'] .message-row.outgoing .message-bubble {
+  background: #1668dc;
+  border-color: #1668dc;
+  color: #fff;
+}
+
+[data-theme='dark'] .message-time {
+  color: rgba(255, 255, 255, 0.55);
 }
 
 [data-theme='dark'] .chat-input-bar {

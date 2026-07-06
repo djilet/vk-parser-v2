@@ -1,11 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { URL } from 'node:url';
 import { getTokenByUserId, isTokenExpired, loadAllTokens } from '../src/token/index.js';
-import { loadChatStatuses, setChatStatus } from '../src/chat-status/store.js';
-import { isChatStatus } from '../src/chat-status/types.js';
+import { loadChatStatuses, loadPeerIdsByStatus, setChatStatus } from '../src/chat-status/store.js';
+import { ChatStatus, isChatStatus } from '../src/chat-status/types.js';
 import { loadPinnedPeerIds, setPeerPinned } from '../src/pins/store.js';
 import { getConversations, getConversationsById, getHistory, getUsers, markPeerAsRead, sendMessage, type VkConversationFilter } from '../src/vk/api.js';
-import { mapConversationToSummary } from '../src/vk/conversation-summary.js';
+import { mapConversationToSummary, sortChatsForDisplay } from '../src/vk/conversation-summary.js';
+import { enrichConversationItemsWithLastMessages } from '../src/vk/enrich-conversations.js';
 import { formatMessages } from '../src/vk/message-format.js';
 import { suggestReply, type ChatMessageForSuggestion } from '../src/ollama/suggest-reply.js';
 import { eventBus } from './event-bus.js';
@@ -181,18 +182,21 @@ async function handleGetPinnedConversations(req: IncomingMessage, res: ServerRes
   }
 
   const data = await getConversationsById(token.accessToken, peerIds);
+  const enrichedItems = await enrichConversationItemsWithLastMessages(token.accessToken, data.items);
   const profiles = data.profiles ?? [];
   const groups = data.groups ?? [];
   const chatsByPeerId = new Map<number, ReturnType<typeof mapConversationToSummary>>();
 
-  for (const item of data.items) {
+  for (const item of enrichedItems) {
     const chat = mapConversationToSummary(item, profiles, groups);
     chatsByPeerId.set(chat.peerId, chat);
   }
 
-  const chats = peerIds
-    .map((peerId) => chatsByPeerId.get(peerId))
-    .filter((chat): chat is NonNullable<typeof chat> => chat != null);
+  const chats = sortChatsForDisplay(
+    peerIds
+      .map((peerId) => chatsByPeerId.get(peerId))
+      .filter((chat): chat is NonNullable<typeof chat> => chat != null),
+  );
 
   sendJson(res, 200, { accountId, chats });
 }
@@ -219,6 +223,60 @@ async function handleGetChatStatuses(req: IncomingMessage, res: ServerResponse):
 
   const statuses = await loadChatStatuses(accountId);
   sendJson(res, 200, { accountId, statuses });
+}
+
+async function fetchConversationsByPeerIds(accessToken: string, peerIds: number[]) {
+  const batchSize = 100;
+  const items: Awaited<ReturnType<typeof getConversationsById>>['items'] = [];
+  let profiles: NonNullable<Awaited<ReturnType<typeof getConversationsById>>['profiles']> = [];
+  let groups: NonNullable<Awaited<ReturnType<typeof getConversationsById>>['groups']> = [];
+
+  for (let offset = 0; offset < peerIds.length; offset += batchSize) {
+    const batch = peerIds.slice(offset, offset + batchSize);
+    const data = await getConversationsById(accessToken, batch);
+    items.push(...data.items);
+    profiles = data.profiles ?? profiles;
+    groups = data.groups ?? groups;
+  }
+
+  return { items, profiles, groups };
+}
+
+async function handleGetStatusConversations(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
+  const accountId = parseAccountId(url.searchParams.get('accountId'));
+  const status = url.searchParams.get('status');
+
+  if (!isChatStatus(status) || status === ChatStatus.Initial) {
+    throw new Error('status must be active_dialog or client');
+  }
+
+  const token = await getTokenByUserId(accountId);
+  const peerIds = await loadPeerIdsByStatus(accountId, status);
+
+  if (peerIds.length === 0) {
+    sendJson(res, 200, { accountId, status, chats: [] });
+    return;
+  }
+
+  const data = await fetchConversationsByPeerIds(token.accessToken, peerIds);
+  const enrichedItems = await enrichConversationItemsWithLastMessages(token.accessToken, data.items);
+  const profiles = data.profiles ?? [];
+  const groups = data.groups ?? [];
+  const chatsByPeerId = new Map<number, ReturnType<typeof mapConversationToSummary>>();
+
+  for (const item of enrichedItems) {
+    const chat = mapConversationToSummary(item, profiles, groups);
+    chatsByPeerId.set(chat.peerId, chat);
+  }
+
+  const chats = sortChatsForDisplay(
+    peerIds
+      .map((peerId) => chatsByPeerId.get(peerId))
+      .filter((chat): chat is NonNullable<typeof chat> => chat != null),
+  );
+
+  sendJson(res, 200, { accountId, status, chats });
 }
 
 async function handleSetChatStatus(
@@ -409,6 +467,11 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
     if (req.method === 'GET' && pathname === '/api/pinned-chats/conversations') {
       await handleGetPinnedConversations(req, res);
+      return;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/chat-status/conversations') {
+      await handleGetStatusConversations(req, res);
       return;
     }
 

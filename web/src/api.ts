@@ -8,6 +8,10 @@ export const CHAT_STATUS_OPTIONS: { value: ChatStatus; label: string }[] = [
   { value: 'client', label: 'Клиент' },
 ];
 
+export type TaggedChatStatus = 'active_dialog' | 'client';
+
+export const TAGGED_CHAT_STATUSES: TaggedChatStatus[] = ['active_dialog', 'client'];
+
 export type Account = {
   userId?: number;
   email?: string;
@@ -234,6 +238,18 @@ export function fetchChatStatuses(
   accountId: number,
 ): Promise<{ accountId: number; statuses: Record<number, ChatStatus> }> {
   return apiFetch(`/api/chat-status?accountId=${accountId}`);
+}
+
+export function fetchStatusConversations(
+  accountId: number,
+  status: ChatStatus,
+): Promise<{ accountId: number; status: ChatStatus; chats: ChatSummary[] }> {
+  const search = new URLSearchParams({
+    accountId: String(accountId),
+    status,
+  });
+
+  return apiFetch(`/api/chat-status/conversations?${search}`);
 }
 
 export function setChatStatus(

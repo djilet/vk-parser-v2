@@ -1,6 +1,7 @@
 import { PushpinFilled, PushpinOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Badge, Button, Card, Empty, Select, Spin, Tooltip, Typography } from 'antd';
 import { CHAT_STATUS_OPTIONS, DEFAULT_CHAT_STATUS, type ChatStatus, type ChatSummary } from '../api';
+import { sortChatListItems } from '../utils/chats';
 
 type ChatCardProps = {
   chat: ChatSummary;
@@ -169,5 +170,5 @@ export function buildChatList(
     .filter((chat) => !pinnedSet.has(chat.peerId))
     .map((chat) => ({ chat, pinned: false }));
 
-  return [...pinnedItems, ...unpinnedItems];
+  return sortChatListItems([...pinnedItems, ...unpinnedItems]);
 }

@@ -119,6 +119,51 @@ export async function getSearchResults(page) {
   return hasSearchResults(page);
 }
 
+export async function scrollToCommunityIndex(page, index) {
+  const result = await ensureResultsLoaded(page, index + 1);
+
+  if (!result.found || index >= result.count) {
+    return result;
+  }
+
+  console.log(`Прокручиваю к сообществу #${index + 1} в списке...`);
+
+  const scrolled = await page.evaluate((sectionText, targetIndex) => {
+    const headings = document.querySelectorAll('span.vkuiEllipsisText__content');
+
+    for (const heading of headings) {
+      if (heading.textContent?.trim() !== sectionText) continue;
+
+      let container = heading.parentElement;
+      for (let depth = 0; depth < 12 && container; depth++) {
+        const links = [...container.querySelectorAll('a[data-allow-link-onclick-web="1"]')].filter(
+          (link) => link.querySelector('[class*="vkitTextClamp"]'),
+        );
+
+        if (links[targetIndex]) {
+          links[targetIndex].scrollIntoView({ block: 'center' });
+          return true;
+        }
+
+        if (links.length > 0) {
+          return false;
+        }
+
+        container = container.parentElement;
+      }
+    }
+
+    return false;
+  }, RESULTS_SECTION_TEXT, index);
+
+  if (!scrolled) {
+    throw new Error(`Не удалось прокрутить к сообществу #${index + 1} в списке`);
+  }
+
+  await sleep(500);
+  return result;
+}
+
 export async function ensureResultsLoaded(page, requiredCount) {
   let result = await hasSearchResults(page);
 
@@ -223,6 +268,8 @@ export async function goBackToSearchResults(page) {
 
 export async function clickCommunityByIndex(page, index) {
   console.log(`Кликаю на сообщество #${index + 1} в списке...`);
+
+  await scrollToCommunityIndex(page, index);
 
   const linkHandle = await findCommunityLinkHandle(page, index);
   const link = linkHandle.asElement();

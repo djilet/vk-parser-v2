@@ -2,6 +2,7 @@ import {
   goBackToSearchResults,
   clickCommunityByIndex,
   ensureResultsLoaded,
+  scrollToCommunityIndex,
 } from '../steps/communities.js';
 import { parseCommunityPage } from '../steps/communityPage.js';
 import { createSupabaseExporter } from '../export/toSupabase.js';
@@ -11,8 +12,18 @@ export async function runCommunityParser(page, { searchQuery, limit, skip = 0 })
   let processedCount = 0;
 
   if (skip > 0) {
-    console.log(`Пропускаю первые ${skip} сообществ в списке.`);
-    await ensureResultsLoaded(page, skip + 1);
+    console.log(`Долистываю до сообщества #${skip + 1}...`);
+    const skipResult = await scrollToCommunityIndex(page, skip);
+
+    if (!skipResult.found || skip >= skipResult.count) {
+      console.log(
+        `\nВ списке ${skipResult.count} сообществ, не удалось долистать до #${skip + 1}. `
+        + 'Завершаю парсинг.',
+      );
+      return 0;
+    }
+
+    console.log(`Долистал до сообщества #${skip + 1}, начинаю парсинг.`);
   }
 
   for (let i = 0; i < limit; i += 1) {

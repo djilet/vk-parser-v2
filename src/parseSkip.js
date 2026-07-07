@@ -56,14 +56,6 @@ async function main() {
     return;
   }
 
-  if (config.skip >= searchResults.count) {
-    console.log(
-      `\nВ списке ${searchResults.count} сообществ, а --skip=${config.skip}. `
-      + 'Нечего парсить. Завершаю работу.',
-    );
-    return;
-  }
-
   console.log(`Пропуск: ${config.skip}, запланировано групп: ${config.limit}`);
 
   const searchQuery = config.query.trim();

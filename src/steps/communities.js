@@ -2,102 +2,328 @@ import { sleep } from '../utils/sleep.js';
 
 const GROUPS_LINK = 'a[href="/groups"]';
 const SEARCH_INPUT = 'input[data-testid="search_input"], input[placeholder="Поиск сообществ"]';
-const RESULTS_SECTION_TEXT = 'Среди всех сообществ';
+const RESULTS_SECTION_TEXTS = ['Среди всех сообществ'];
 const RESULTS_WAIT_MS = 5_000;
 const PAGINATION_POLL_MS = 1_000;
 const PAGINATION_TIMEOUT_MS = 15_000;
 const MAX_STAGNANT_ATTEMPTS = 3;
 
-function findCommunityLinkHandle(page, index) {
-  return page.evaluateHandle((sectionText, targetIndex) => {
-    const headings = document.querySelectorAll('span.vkuiEllipsisText__content');
+function queryCommunityResults(page, targetIndex = null) {
+  return page.evaluate((sectionTexts, index) => {
+    const COMMUNITY_HREF_RE = /^\/(club|public|event)\d+(?:[/?#]|$)/;
 
-    for (const heading of headings) {
-      if (heading.textContent?.trim() !== sectionText) continue;
+    function normalizeText(text) {
+      return text?.replace(/\s+/g, ' ').trim() ?? '';
+    }
 
-      let container = heading.parentElement;
-      for (let depth = 0; depth < 12 && container; depth++) {
-        const links = [...container.querySelectorAll('a[data-allow-link-onclick-web="1"]')].filter(
-          (link) => link.querySelector('[class*="vkitTextClamp"]'),
-        );
+    function isCommunityLink(link) {
+      const href = link.getAttribute('href') ?? '';
+      if (COMMUNITY_HREF_RE.test(href)) {
+        return true;
+      }
 
-        if (links[targetIndex]) {
-          return links[targetIndex];
+      if (link.querySelector('[class*="vkitTextClamp"], [class*="TextClamp"]')) {
+        return true;
+      }
+
+      return link.hasAttribute('data-allow-link-onclick-web');
+    }
+
+    function collectCommunityLinks(container) {
+      const seen = new Set();
+      const links = [];
+
+      for (const link of container.querySelectorAll('a[href]')) {
+        if (!isCommunityLink(link)) {
+          continue;
         }
 
+        const href = link.getAttribute('href') ?? '';
+        if (seen.has(href)) {
+          continue;
+        }
+
+        seen.add(href);
+        links.push(link);
+      }
+
+      return links;
+    }
+
+    function findResultsSectionHeading() {
+      const selector = [
+        'span.vkuiEllipsisText__content',
+        '[class*="EllipsisText"]',
+        '[class*="Subhead"]',
+        '[class*="HeaderTitle"]',
+        'h2',
+        'h3',
+      ].join(', ');
+
+      for (const el of document.querySelectorAll(selector)) {
+        const text = normalizeText(el.textContent);
+        if (sectionTexts.some((sectionText) => text === sectionText)) {
+          return el;
+        }
+      }
+
+      return null;
+    }
+
+    function findLinksFromHeading(heading) {
+      let container = heading.parentElement;
+
+      for (let depth = 0; depth < 12 && container; depth++) {
+        const links = collectCommunityLinks(container);
+
         if (links.length > 0) {
-          return null;
+          return links;
         }
 
         container = container.parentElement;
       }
+
+      return [];
     }
 
-    return null;
-  }, RESULTS_SECTION_TEXT, index);
+    function findLinksFallback() {
+      const searchInput = document.querySelector(
+        'input[data-testid="search_input"], input[placeholder="Поиск сообществ"]',
+      );
+      const root = searchInput?.closest('main, [role="main"]') ?? document.body;
+      const links = collectCommunityLinks(root).filter((link) => {
+        const href = link.getAttribute('href') ?? '';
+        return COMMUNITY_HREF_RE.test(href);
+      });
+
+      return links.length >= 3 ? links : [];
+    }
+
+    const heading = findResultsSectionHeading();
+    const links = heading ? findLinksFromHeading(heading) : findLinksFallback();
+
+    return {
+      found: links.length > 0,
+      count: links.length,
+      link: index == null ? null : (links[index] ?? null),
+    };
+  }, RESULTS_SECTION_TEXTS, targetIndex);
+}
+
+function findCommunityLinkHandle(page, index) {
+  return page.evaluateHandle((sectionTexts, targetIndex) => {
+    const COMMUNITY_HREF_RE = /^\/(club|public|event)\d+(?:[/?#]|$)/;
+
+    function normalizeText(text) {
+      return text?.replace(/\s+/g, ' ').trim() ?? '';
+    }
+
+    function isCommunityLink(link) {
+      const href = link.getAttribute('href') ?? '';
+      if (COMMUNITY_HREF_RE.test(href)) {
+        return true;
+      }
+
+      if (link.querySelector('[class*="vkitTextClamp"], [class*="TextClamp"]')) {
+        return true;
+      }
+
+      return link.hasAttribute('data-allow-link-onclick-web');
+    }
+
+    function collectCommunityLinks(container) {
+      const seen = new Set();
+      const links = [];
+
+      for (const link of container.querySelectorAll('a[href]')) {
+        if (!isCommunityLink(link)) {
+          continue;
+        }
+
+        const href = link.getAttribute('href') ?? '';
+        if (seen.has(href)) {
+          continue;
+        }
+
+        seen.add(href);
+        links.push(link);
+      }
+
+      return links;
+    }
+
+    function findResultsSectionHeading() {
+      const selector = [
+        'span.vkuiEllipsisText__content',
+        '[class*="EllipsisText"]',
+        '[class*="Subhead"]',
+        '[class*="HeaderTitle"]',
+        'h2',
+        'h3',
+      ].join(', ');
+
+      for (const el of document.querySelectorAll(selector)) {
+        const text = normalizeText(el.textContent);
+        if (sectionTexts.some((sectionText) => text === sectionText)) {
+          return el;
+        }
+      }
+
+      return null;
+    }
+
+    function findLinksFromHeading(heading) {
+      let container = heading.parentElement;
+
+      for (let depth = 0; depth < 12 && container; depth++) {
+        const links = collectCommunityLinks(container);
+
+        if (links.length > 0) {
+          return links;
+        }
+
+        container = container.parentElement;
+      }
+
+      return [];
+    }
+
+    function findLinksFallback() {
+      const searchInput = document.querySelector(
+        'input[data-testid="search_input"], input[placeholder="Поиск сообществ"]',
+      );
+      const root = searchInput?.closest('main, [role="main"]') ?? document.body;
+      const links = collectCommunityLinks(root).filter((link) => {
+        const href = link.getAttribute('href') ?? '';
+        return COMMUNITY_HREF_RE.test(href);
+      });
+
+      return links.length >= 3 ? links : [];
+    }
+
+    const heading = findResultsSectionHeading();
+    const links = heading ? findLinksFromHeading(heading) : findLinksFallback();
+
+    return links[targetIndex] ?? null;
+  }, RESULTS_SECTION_TEXTS, index);
 }
 
 async function hasSearchResults(page) {
-  return page.evaluate((sectionText) => {
-    const headings = document.querySelectorAll('span.vkuiEllipsisText__content');
+  const result = await queryCommunityResults(page);
+  return { found: result.found, count: result.count };
+}
 
-    for (const heading of headings) {
-      if (heading.textContent?.trim() !== sectionText) continue;
+async function debugSearchPage(page) {
+  return page.evaluate((sectionTexts) => {
+    const headings = [...document.querySelectorAll('span, h2, h3, div')]
+      .map((el) => el.textContent?.replace(/\s+/g, ' ').trim())
+      .filter((text) => text && text.length <= 60);
 
-      let container = heading.parentElement;
-      for (let depth = 0; depth < 12 && container; depth++) {
-        const links = [...container.querySelectorAll('a[data-allow-link-onclick-web="1"]')].filter(
-          (link) => link.querySelector('[class*="vkitTextClamp"]'),
-        );
+    const uniqueHeadings = [...new Set(headings)].slice(0, 12);
+    const communityLinks = document.querySelectorAll('a[href^="/club"], a[href^="/public"], a[href^="/event"]').length;
+    const hasSection = sectionTexts.some((sectionText) => headings.includes(sectionText));
 
-        if (links.length > 0) {
-          return { found: true, count: links.length };
-        }
-
-        container = container.parentElement;
-      }
-    }
-
-    return { found: false, count: 0 };
-  }, RESULTS_SECTION_TEXT);
+    return { uniqueHeadings, communityLinks, hasSection };
+  }, RESULTS_SECTION_TEXTS);
 }
 
 async function scrollResultsList(page) {
-  await page.evaluate((sectionText) => {
-    const headings = document.querySelectorAll('span.vkuiEllipsisText__content');
+  await page.evaluate((sectionTexts) => {
+    const COMMUNITY_HREF_RE = /^\/(club|public|event)\d+(?:[/?#]|$)/;
 
-    for (const heading of headings) {
-      if (heading.textContent?.trim() !== sectionText) continue;
+    function normalizeText(text) {
+      return text?.replace(/\s+/g, ' ').trim() ?? '';
+    }
 
+    function isCommunityLink(link) {
+      const href = link.getAttribute('href') ?? '';
+      if (COMMUNITY_HREF_RE.test(href)) {
+        return true;
+      }
+
+      if (link.querySelector('[class*="vkitTextClamp"], [class*="TextClamp"]')) {
+        return true;
+      }
+
+      return link.hasAttribute('data-allow-link-onclick-web');
+    }
+
+    function collectCommunityLinks(container) {
+      const seen = new Set();
+      const links = [];
+
+      for (const link of container.querySelectorAll('a[href]')) {
+        if (!isCommunityLink(link)) {
+          continue;
+        }
+
+        const href = link.getAttribute('href') ?? '';
+        if (seen.has(href)) {
+          continue;
+        }
+
+        seen.add(href);
+        links.push(link);
+      }
+
+      return links;
+    }
+
+    function findResultsSectionHeading() {
+      const selector = [
+        'span.vkuiEllipsisText__content',
+        '[class*="EllipsisText"]',
+        '[class*="Subhead"]',
+        '[class*="HeaderTitle"]',
+        'h2',
+        'h3',
+      ].join(', ');
+
+      for (const el of document.querySelectorAll(selector)) {
+        const text = normalizeText(el.textContent);
+        if (sectionTexts.some((sectionText) => text === sectionText)) {
+          return el;
+        }
+      }
+
+      return null;
+    }
+
+    function scrollLinks(links, container) {
+      links[links.length - 1].scrollIntoView({ block: 'end' });
+
+      let scrollable = container;
+      while (scrollable) {
+        if (scrollable.scrollHeight > scrollable.clientHeight + 10) {
+          scrollable.scrollTop = scrollable.scrollHeight;
+          return;
+        }
+        scrollable = scrollable.parentElement;
+      }
+
+      window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    const heading = findResultsSectionHeading();
+
+    if (heading) {
       let container = heading.parentElement;
+
       for (let depth = 0; depth < 12 && container; depth++) {
-        const links = [...container.querySelectorAll('a[data-allow-link-onclick-web="1"]')].filter(
-          (link) => link.querySelector('[class*="vkitTextClamp"]'),
-        );
+        const links = collectCommunityLinks(container);
 
         if (links.length === 0) {
           container = container.parentElement;
           continue;
         }
 
-        links[links.length - 1].scrollIntoView({ block: 'end' });
-
-        let scrollable = container;
-        while (scrollable) {
-          if (scrollable.scrollHeight > scrollable.clientHeight + 10) {
-            scrollable.scrollTop = scrollable.scrollHeight;
-            return;
-          }
-          scrollable = scrollable.parentElement;
-        }
-
-        window.scrollTo(0, document.body.scrollHeight);
+        scrollLinks(links, container);
         return;
       }
     }
 
     window.scrollTo(0, document.body.scrollHeight);
-  }, RESULTS_SECTION_TEXT);
+  }, RESULTS_SECTION_TEXTS);
 }
 
 async function waitForResultsCountIncrease(page, previousCount) {
@@ -128,38 +354,16 @@ export async function scrollToCommunityIndex(page, index) {
 
   console.log(`Прокручиваю к сообществу #${index + 1} в списке...`);
 
-  const scrolled = await page.evaluate((sectionText, targetIndex) => {
-    const headings = document.querySelectorAll('span.vkuiEllipsisText__content');
+  const linkHandle = await findCommunityLinkHandle(page, index);
+  const link = linkHandle.asElement();
 
-    for (const heading of headings) {
-      if (heading.textContent?.trim() !== sectionText) continue;
-
-      let container = heading.parentElement;
-      for (let depth = 0; depth < 12 && container; depth++) {
-        const links = [...container.querySelectorAll('a[data-allow-link-onclick-web="1"]')].filter(
-          (link) => link.querySelector('[class*="vkitTextClamp"]'),
-        );
-
-        if (links[targetIndex]) {
-          links[targetIndex].scrollIntoView({ block: 'center' });
-          return true;
-        }
-
-        if (links.length > 0) {
-          return false;
-        }
-
-        container = container.parentElement;
-      }
-    }
-
-    return false;
-  }, RESULTS_SECTION_TEXT, index);
-
-  if (!scrolled) {
+  if (!link) {
+    await linkHandle.dispose();
     throw new Error(`Не удалось прокрутить к сообществу #${index + 1} в списке`);
   }
 
+  await link.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await linkHandle.dispose();
   await sleep(500);
   return result;
 }
@@ -221,6 +425,7 @@ export async function searchCommunities(page, query) {
   const input = await page.waitForSelector(SEARCH_INPUT, { timeout: 30_000, visible: true });
   await input.click({ clickCount: 3 });
   await input.type(query, { delay: 40 });
+  await input.press('Enter');
 
   console.log('Запрос введён.');
 }
@@ -242,6 +447,17 @@ export async function waitForSearchResults(page) {
     }
 
     console.log(`Попытка ${attempt}: список не появился, жду ещё 5с...`);
+
+    if (attempt === 3 || attempt % 5 === 0) {
+      const debug = await debugSearchPage(page);
+      console.log(
+        `Диагностика: ссылок club/public/event — ${debug.communityLinks}, `
+        + `заголовок «Среди всех сообществ» — ${debug.hasSection ? 'есть' : 'нет'}`,
+      );
+      if (debug.communityLinks > 0) {
+        console.log(`Заголовки на странице: ${debug.uniqueHeadings.join(' | ')}`);
+      }
+    }
   }
 }
 
@@ -280,7 +496,8 @@ export async function clickCommunityByIndex(page, index) {
   }
 
   const info = await link.evaluate((el) => ({
-    title: el.querySelector('[class*="vkitTextClamp"]')?.textContent?.trim() ?? el.textContent?.trim(),
+    title: el.querySelector('[class*="vkitTextClamp"], [class*="TextClamp"]')?.textContent?.trim()
+      ?? el.textContent?.trim(),
     href: el.getAttribute('href'),
   }));
 

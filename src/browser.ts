@@ -60,7 +60,7 @@ function launchOptions(options: LaunchOptions, debugPort: number) {
     headless: options.headless ?? false,
     userDataDir: options.paths.browserProfile,
     defaultViewport: null,
-    args: ['--start-maximized', `--remote-debugging-port=${debugPort}`],
+    args: ['--start-maximized', `--remote-debugging-port=${debugPort}`, '--no-sandbox', '--disable-setuid-sandbox'],
     ...(executablePath ? { executablePath } : { channel: 'chrome' as const }),
   };
 }

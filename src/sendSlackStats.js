@@ -1,11 +1,11 @@
 import { config } from './config.js';
 import { sendSlackMessage } from './slack/sendMessage.js';
 import { countMessagesSentToday, countMessagesSentTotal, countWritableCommunities } from './storage/stats.js';
-import { isSupabaseConfigured } from './supabase/client.js';
+import { isApiConfigured } from './api/auth.js';
 
 function ensureConfig() {
-  if (!isSupabaseConfigured()) {
-    console.error('Supabase не настроен: задайте SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY в .env');
+  if (!isApiConfigured()) {
+    console.error('API не настроен: задайте API_BASE_URL, API_PHONE и API_CODE в .env');
     process.exit(1);
   }
 

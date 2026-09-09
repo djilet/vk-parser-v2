@@ -1,63 +1,24 @@
-import { getSupabaseClient } from '../supabase/client.js';
+import { countCommunities as countCommunitiesApi } from '../api/salesCommunities.js';
+import { countMessagesSent } from '../api/salesCommunityMessagesSent.js';
 import { getZonedDayBounds } from '../utils/timezone.js';
 
 export async function countMessagesSentToday(timeZone) {
-  const supabase = getSupabaseClient();
   const { start, end } = getZonedDayBounds(timeZone);
 
-  const { count, error } = await supabase
-    .from('community_messages_sent')
-    .select('*', { count: 'exact', head: true })
-    .gte('sent_at', start)
-    .lt('sent_at', end);
+  // sent_at_to на бэкенде — включающая граница, поэтому берём последнюю миллисекунду суток.
+  const lastMs = new Date(new Date(end).getTime() - 1).toISOString();
 
-  if (error) {
-    throw new Error(`Supabase: не удалось посчитать отправки за сегодня — ${error.message}`);
-  }
-
-  return count ?? 0;
+  return countMessagesSent({ sent_at_from: start, sent_at_to: lastMs });
 }
 
-export async function countMessagesSentTotal() {
-  const supabase = getSupabaseClient();
-
-  const { count, error } = await supabase
-    .from('community_messages_sent')
-    .select('*', { count: 'exact', head: true });
-
-  if (error) {
-    throw new Error(`Supabase: не удалось посчитать все отправки — ${error.message}`);
-  }
-
-  return count ?? 0;
+export function countMessagesSentTotal() {
+  return countMessagesSent();
 }
 
-export async function countCommunities() {
-  const supabase = getSupabaseClient();
-
-  const { count, error } = await supabase
-    .from('communities')
-    .select('*', { count: 'exact', head: true });
-
-  if (error) {
-    throw new Error(`Supabase: не удалось посчитать сообщества — ${error.message}`);
-  }
-
-  return count ?? 0;
+export function countCommunities() {
+  return countCommunitiesApi();
 }
 
-export async function countWritableCommunities() {
-  const supabase = getSupabaseClient();
-
-  const { count, error } = await supabase
-    .from('communities')
-    .select('*', { count: 'exact', head: true })
-    .not('msg_url', 'is', null)
-    .not('peer_id', 'is', null);
-
-  if (error) {
-    throw new Error(`Supabase: не удалось посчитать сообщества для отправки — ${error.message}`);
-  }
-
-  return count ?? 0;
+export function countWritableCommunities() {
+  return countCommunitiesApi({ has_peer_id: true, has_msg_url: true });
 }

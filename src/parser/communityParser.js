@@ -5,10 +5,10 @@ import {
   scrollToCommunityIndex,
 } from '../steps/communities.js';
 import { parseCommunityPage } from '../steps/communityPage.js';
-import { createSupabaseExporter } from '../export/toSupabase.js';
+import { createApiExporter } from '../export/toApi.js';
 
 export async function runCommunityParser(page, { searchQuery, limit, skip = 0 }) {
-  const supabaseExporter = createSupabaseExporter(searchQuery);
+  const exporter = createApiExporter(searchQuery);
   let processedCount = 0;
 
   if (skip > 0) {
@@ -44,9 +44,9 @@ export async function runCommunityParser(page, { searchQuery, limit, skip = 0 })
     await clickCommunityByIndex(page, listIndex);
     const community = await parseCommunityPage(page);
 
-    const communityId = await supabaseExporter.saveCommunity(community);
+    const communityId = await exporter.saveCommunity(community);
     processedCount += 1;
-    console.log(`Supabase: сохранено community_id=${communityId} (${processedCount})`);
+    console.log(`API: сохранено community_id=${communityId} (${processedCount})`);
 
     if (i < limit - 1) {
       await goBackToSearchResults(page);

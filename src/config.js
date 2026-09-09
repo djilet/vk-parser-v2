@@ -39,10 +39,21 @@ export const config = {
   /** Профиль браузера (для сохранения сессии VK) */
   userDataDir: process.env.USER_DATA_DIR ?? './chrome-profile',
 
-  supabase: {
-    url: process.env.SUPABASE_URL ?? null,
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? null,
-    schema: process.env.SUPABASE_SCHEMA ?? 'public',
+  api: {
+    /** Корень PHP API, включая префикс /api */
+    baseUrl: process.env.API_BASE_URL ?? null,
+
+    /** Телефон, под которым логинимся (он же username в /login_check) */
+    phone: process.env.API_PHONE ?? null,
+
+    /** Одноразовый код: на dev/sandbox/test бэкенд всегда ставит 1234 */
+    code: process.env.API_CODE ?? null,
+
+    /** Куда кладём bearer-токен между запусками скриптов */
+    tokenFile: process.env.API_TOKEN_FILE ?? '.auth-token.json',
+
+    /** Таймаут одного HTTP-запроса к API, мс */
+    requestTimeoutMs: Number.parseInt(process.env.API_REQUEST_TIMEOUT_MS ?? '', 10) || 30_000,
   },
 
   slack: {

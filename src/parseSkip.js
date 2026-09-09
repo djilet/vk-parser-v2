@@ -6,7 +6,7 @@ import {
   waitForSearchResults,
 } from './steps/communities.js';
 import { waitForEnter } from './utils/prompt.js';
-import { verifySupabase } from './export/toSupabase.js';
+import { verifyApi } from './export/toApi.js';
 import { runCommunityParser } from './parser/communityParser.js';
 
 function ensureConfig() {
@@ -30,8 +30,8 @@ function ensureConfig() {
 
 async function main() {
   ensureConfig();
-  await verifySupabase();
-  console.log('Supabase: подключение проверено');
+  await verifyApi();
+  console.log('API: подключение проверено');
 
   const browser = await launchBrowser();
   const pages = await browser.pages();
@@ -70,7 +70,7 @@ async function main() {
     return;
   }
 
-  console.log(`\nГотово. Сохранено в Supabase: ${processedCount}`);
+  console.log(`\nГотово. Сохранено через API: ${processedCount}`);
   console.log('\nБраузер остаётся открытым — закройте его или нажмите Ctrl+C.');
   await new Promise(() => {});
 }

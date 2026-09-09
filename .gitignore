@@ -5,3 +5,4 @@ node_modules/
 chrome-profile/
 output/
 sent.json
+.auth-token.json

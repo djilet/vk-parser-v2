@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { loadCommunitiesFromJson } from './import/fromJson.js';
-import { createSupabaseExporter, verifySupabase } from './export/toSupabase.js';
+import { createApiExporter, verifyApi } from './export/toApi.js';
 
 function ensureConfig() {
   const example = 'npm run import -- --file output/2026-05-28_11-52-21.json';
@@ -13,10 +13,10 @@ function ensureConfig() {
 
 async function main() {
   ensureConfig();
-  await verifySupabase();
+  await verifyApi();
 
   const { communities, search_query, file_path } = await loadCommunitiesFromJson(config.jsonFile.trim());
-  const exporter = createSupabaseExporter(search_query);
+  const exporter = createApiExporter(search_query);
 
   console.log(`JSON: ${file_path}`);
   if (search_query) {

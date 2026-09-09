@@ -6,7 +6,7 @@ import { loadPendingCommunitiesByParity } from './storage/pendingCommunities.js'
 import { markCommunityMessageSent } from './storage/sentMessages.js';
 import { sendCommunityMessage } from './steps/sendMessage.js';
 import { parseArgs } from './utils/args.js';
-import { isSupabaseConfigured } from './supabase/client.js';
+import { isApiConfigured } from './api/auth.js';
 import { waitForEnter } from './utils/prompt.js';
 
 function resolveParity() {
@@ -40,8 +40,8 @@ function ensureConfig(parity) {
     process.exit(1);
   }
 
-  if (!isSupabaseConfigured()) {
-    console.error('Supabase не настроен: задайте SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY в .env');
+  if (!isApiConfigured()) {
+    console.error('API не настроен: задайте API_BASE_URL, API_PHONE и API_CODE в .env');
     process.exit(1);
   }
 }
@@ -103,7 +103,7 @@ async function main() {
     await sendCommunityMessage(page, messageText);
 
     const sentId = await markCommunityMessageSent(community);
-    console.log(`Отправка записана в БД: community_messages_sent.id=${sentId}`);
+    console.log(`Отправка записана в БД: sales_community_messages_sent.id=${sentId}`);
   }
 
   console.log('\nГотово. Браузер остаётся открытым — закройте его или нажмите Ctrl+C.');

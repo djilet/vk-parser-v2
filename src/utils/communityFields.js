@@ -22,6 +22,7 @@ export function normalizeCommunity(community) {
     msg_url: getCommunityMsgUrl(community),
     peer_id: getCommunityPeerId(community),
     last_post_date: community.last_post_date ?? community.lastPostDate ?? null,
+    description: community.description ?? null,
     contacts: (community.contacts ?? []).map((contact) => ({
       full_name: contact.full_name ?? contact.fullName ?? null,
       profile_url: contact.profile_url ?? contact.profileUrl ?? null,

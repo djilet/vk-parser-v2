@@ -1,6 +1,7 @@
 import { sleep } from '../utils/sleep.js';
 import { parsePeerIdFromMsgUrl } from '../utils/peerId.js';
 import { pickLatestPostDate } from '../utils/vkPostDate.js';
+import { parseCommunityDescription } from './communityDescription.js';
 
 const PAGE_LOAD_WAIT_MS = 5_000;
 
@@ -10,6 +11,7 @@ function printCommunityInfo(data) {
   console.log('Название:', data.name ?? '—');
   console.log('Телефон:', data.phone ?? '—');
   console.log('Сайт:', data.site ?? '—');
+  console.log('Описание:', data.description ?? '—');
   console.log('Сообщение:', data.msg_url ?? '—');
   console.log('peer_id:', data.peer_id ?? '—');
   console.log('Последний пост:', data.last_post_date ?? '—');
@@ -198,6 +200,7 @@ export async function parseCommunityPage(page) {
 
   const scrapedAt = new Date();
   const last_post_date = pickLatestPostDate(data.post_date_texts ?? [], scrapedAt);
+  const description = await parseCommunityDescription(page);
 
   const community = {
     url: data.url,
@@ -207,6 +210,7 @@ export async function parseCommunityPage(page) {
     msg_url: data.msg_url,
     peer_id: parsePeerIdFromMsgUrl(data.msg_url),
     last_post_date,
+    description,
     contacts: data.contacts,
   };
 

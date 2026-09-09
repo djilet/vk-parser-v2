@@ -60,6 +60,14 @@ export const config = {
     webhookUrl: process.env.SLACK_WEBHOOK_URL ?? null,
   },
 
+  supabase: {
+    /** Старая база, из которой переносим исторические данные в sales_* через API. */
+    url: process.env.SB_URL ?? null,
+
+    /** Anon-ключ: таблицы communities/community_* сейчас без RLS, его достаточно для чтения. */
+    key: process.env.SB_KEY ?? null,
+  },
+
   stats: {
     timezone: process.env.STATS_TIMEZONE ?? 'Europe/Moscow',
   },

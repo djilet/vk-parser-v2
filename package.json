@@ -4,13 +4,16 @@
   "description": "VK page parser using Puppeteer",
   "type": "module",
   "scripts": {
+    "login": "node src/login.js",
     "start": "node src/index.js",
     "parse-skip": "node src/parseSkip.js",
+    "parse-descriptions": "node src/parseDescriptions.js",
     "messages": "node src/openMessages.js",
     "send-messages": "node src/sendMessages.js",
     "send-messages-parity": "node src/sendMessagesParity.js",
     "slack-stats": "node src/sendSlackStats.js",
-    "import": "node src/importJson.js"
+    "import": "node src/importJson.js",
+    "migrate-supabase": "node src/migrateFromSupabase.js"
   },
   "dependencies": {
     "dotenv": "^16.5.0",

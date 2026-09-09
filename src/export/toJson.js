@@ -23,6 +23,7 @@ function buildCommunityPayload(data) {
     msg_url: data.msg_url ?? null,
     peer_id: data.peer_id ?? parsePeerIdFromMsgUrl(data.msg_url) ?? null,
     last_post_date: data.last_post_date ?? null,
+    description: data.description ?? null,
     contacts: data.contacts.map((contact) => ({
       full_name: contact.full_name,
       profile_url: contact.profile_url,

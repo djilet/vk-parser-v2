@@ -30,6 +30,7 @@ function buildCommunityPayload(community) {
     msg_url: normalized.msg_url,
     peer_id: getCommunityPeerId(normalized),
     last_post_date: normalized.last_post_date,
+    description: normalized.description,
   };
 }
 

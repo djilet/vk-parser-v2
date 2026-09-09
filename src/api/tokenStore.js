@@ -8,7 +8,7 @@ import { config } from '../config.js';
 // клал бы токен вне проекта, туда, где его уже не прикрывает .gitignore.
 const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-function tokenFilePath() {
+export function tokenFilePath() {
   return resolve(PROJECT_ROOT, config.api.tokenFile);
 }
 

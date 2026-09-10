@@ -42,3 +42,8 @@ export function iterateWritableCommunities({ notMessaged = true } = {}) {
     not_messaged: notMessaged,
   });
 }
+
+/** Сообщества, которые ещё не проверяли LLM: is_fraud IS NULL. */
+export function iterateUncheckedCommunities() {
+  return apiIterate(COMMUNITIES_PATH, { has_fraud_check: false });
+}

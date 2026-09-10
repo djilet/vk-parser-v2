@@ -200,7 +200,7 @@ export async function parseCommunityPage(page) {
 
   const scrapedAt = new Date();
   const last_post_date = pickLatestPostDate(data.post_date_texts ?? [], scrapedAt);
-  const description = await parseCommunityDescription(page);
+  const { description } = await parseCommunityDescription(page);
 
   const community = {
     url: data.url,

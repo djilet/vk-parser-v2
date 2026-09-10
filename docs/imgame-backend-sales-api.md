@@ -46,7 +46,9 @@ those rather than re-implementing this flow.
 Uniques: `url`, `peer_id`.
 
 List filters: `limit` (≤20), `offset`, `q`, `url`, `peer_id`, `is_fraud`, `source`,
-`has_peer_id`, `has_msg_url`, `not_messaged`, `last_post_date_from`, `last_post_date_to`.
+`has_peer_id`, `has_msg_url`, `not_messaged`, `has_fraud_check`, `last_post_date_from`,
+`last_post_date_to`. `has_fraud_check=false` keeps only communities never checked
+(`is_fraud IS NULL`); `=true` keeps only checked ones (`is_fraud IS NOT NULL`).
 
 | field | type | notes |
 |---|---|---|

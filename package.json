@@ -13,7 +13,8 @@
     "send-messages-parity": "node src/sendMessagesParity.js",
     "slack-stats": "node src/sendSlackStats.js",
     "import": "node src/importJson.js",
-    "migrate-supabase": "node src/migrateFromSupabase.js"
+    "migrate-supabase": "node src/migrateFromSupabase.js",
+    "check-fraud": "node src/checkFraud.js"
   },
   "dependencies": {
     "dotenv": "^16.5.0",

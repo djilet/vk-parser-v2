@@ -1,26 +1,38 @@
-import { sleep } from '../utils/sleep.js';
-
 const OPEN_BUTTON = '[data-testid="open_full_info_modal"]';
 const MODAL = '[data-testid="community-info-modal"]';
 const STATUS_CELL = '[data-testid="community-info-status"]';
 const DESC_CELL = '[data-testid="community-info-description"]';
-const MODAL_WAIT_MS = 5_000;
-const MODAL_ATTEMPTS = 3; // первая проверка + 2 повтора
+const BUTTON_WAIT_MS = 10_000;
+const MODAL_WAIT_MS = 15_000;
 
 async function closeModal(page) {
   try {
     await page.keyboard.press('Escape');
-    await sleep(500);
+    await page.waitForSelector(MODAL, { hidden: true, timeout: 5_000 });
   } catch {
     // Закрытие модалки не должно ронять парсинг сообщества.
   }
 }
 
+/**
+ * Читает статус и описание сообщества из модалки «Подробная информация».
+ *
+ * Возвращает { description, reason }, где reason различает пустое описание
+ * ('empty' — модалка открылась, но текста нет) и неответившую страницу
+ * ('no_button' / 'no_modal'). По второму варианту вызывающий код понимает,
+ * что VK начал блокировать парсер.
+ */
 export async function parseCommunityDescription(page) {
+  try {
+    await page.waitForSelector(OPEN_BUTTON, { timeout: BUTTON_WAIT_MS, visible: true });
+  } catch {
+    console.log('Кнопка «Подробная информация» не найдена');
+    return { description: null, reason: 'no_button' };
+  }
+
   const button = await page.$(OPEN_BUTTON);
   if (!button) {
-    console.log('Кнопка «Подробная информация» не найдена');
-    return null;
+    return { description: null, reason: 'no_button' };
   }
 
   try {
@@ -33,21 +45,12 @@ export async function parseCommunityDescription(page) {
     await button.dispose();
   }
 
-  let modal = null;
-  for (let attempt = 1; attempt <= MODAL_ATTEMPTS; attempt += 1) {
-    await sleep(MODAL_WAIT_MS);
-    modal = await page.$(MODAL);
-    if (modal) {
-      break;
-    }
-  }
-
-  if (!modal) {
+  try {
+    await page.waitForSelector(MODAL, { timeout: MODAL_WAIT_MS });
+  } catch {
     console.log('Модалка «Подробная информация» не появилась');
-    return null;
+    return { description: null, reason: 'no_modal' };
   }
-
-  await modal.dispose();
 
   try {
     const { status, description } = await page.evaluate((modalSel, statusSel, descSel) => {
@@ -72,7 +75,9 @@ export async function parseCommunityDescription(page) {
       };
     }, MODAL, STATUS_CELL, DESC_CELL);
 
-    return [status, description].filter(Boolean).join('\n') || null;
+    const text = [status, description].filter(Boolean).join('\n') || null;
+
+    return { description: text, reason: text ? 'ok' : 'empty' };
   } finally {
     await closeModal(page);
   }

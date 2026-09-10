@@ -9,6 +9,8 @@ const limitRaw = args.limit ?? args.count ?? null;
 const limit = limitRaw == null ? null : Number.parseInt(String(limitRaw), 10);
 const skipRaw = args.skip ?? null;
 const skip = skipRaw == null ? null : Number.parseInt(String(skipRaw), 10);
+const offsetRaw = args.offset ?? null;
+const offset = offsetRaw == null ? null : Number.parseInt(String(offsetRaw), 10);
 const jsonFile = args.file ?? null;
 
 export const config = {
@@ -23,6 +25,9 @@ export const config = {
 
   /** Сколько первых сообществ пропустить в списке (для parse-skip) */
   skip: Number.isFinite(skip) && skip >= 0 ? skip : null,
+
+  /** С какого элемента списка начинать (для parse-descriptions) */
+  offset: Number.isFinite(offset) && offset >= 0 ? offset : null,
 
   /** Путь к JSON для скрипта openMessages */
   jsonFile,
@@ -70,5 +75,16 @@ export const config = {
 
   stats: {
     timezone: process.env.STATS_TIMEZONE ?? 'Europe/Moscow',
+  },
+
+  yandex: {
+    /** Api-Key сервисного аккаунта Yandex Cloud (тот же, что YANDEX_GPT_API_KEY в бэкенде) */
+    apiKey: process.env.YANDEX_GPT_API_KEY ?? null,
+
+    /** Каталог Yandex Cloud — первая часть modelUri gpt://{folderId}/{model} */
+    folderId: process.env.YANDEX_GPT_FOLDER_ID ?? null,
+
+    /** Модель, часть modelUri после folder id */
+    model: process.env.YANDEX_GPT_MODEL ?? 'yandexgpt-lite/latest',
   },
 };

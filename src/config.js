@@ -12,6 +12,9 @@ const skip = skipRaw == null ? null : Number.parseInt(String(skipRaw), 10);
 const offsetRaw = args.offset ?? null;
 const offset = offsetRaw == null ? null : Number.parseInt(String(offsetRaw), 10);
 const jsonFile = args.file ?? null;
+const communityRaw = args.community ?? null;
+const communityId = communityRaw == null ? null : Number.parseInt(String(communityRaw), 10);
+const full = Boolean(args.full);
 
 export const config = {
   /** Страница входа VK */
@@ -31,6 +34,20 @@ export const config = {
 
   /** Путь к JSON для скрипта openMessages */
   jsonFile,
+
+  /** --community <id> для syncMessages: синхронизировать только одно сообщество */
+  communityId: Number.isFinite(communityId) && communityId > 0 ? communityId : null,
+
+  /**
+   * Сырое значение --community до парсинга — только чтобы отличить «флаг не передан» (null)
+   * от «передан, но без числа» (--community без значения парсится в args.community === true,
+   * Number.parseInt('true') === NaN, и без этого поля такой вызов молча откатывался бы к «все
+   * сообщества» вместо явной ошибки).
+   */
+  communityIdRaw: communityRaw,
+
+  /** --full для syncMessages: полная заливка истории вместо до-синхронизации новых */
+  full,
 
   /** false — видимый браузер, true — headless */
   headless: process.env.HEADLESS === 'true',
@@ -75,6 +92,17 @@ export const config = {
 
   stats: {
     timezone: process.env.STATS_TIMEZONE ?? 'Europe/Moscow',
+  },
+
+  vk: {
+    /** Номер браузера/аккаунта VK (1 или 2) — свой токен и профиль Chrome на каждый */
+    browserId: Number.parseInt(process.env.VK_BROWSER ?? '', 10) || 1,
+
+    /** Таймаут одного запроса к api.vk.com, мс — прогон идёт часами, зависший запрос не должен его вешать */
+    requestTimeoutMs: Number.parseInt(process.env.VK_REQUEST_TIMEOUT_MS ?? '', 10) || 30_000,
+
+    /** Пауза между запросами к VK API, мс — user-токен ограничен 3 запросами в секунду */
+    requestDelayMs: Number.parseInt(process.env.VK_REQUEST_DELAY_MS ?? '', 10) || 350,
   },
 
   yandex: {

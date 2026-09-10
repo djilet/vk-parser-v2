@@ -14,7 +14,7 @@ export function isYandexConfigured() {
 export function ensureYandexConfigured() {
   if (!isYandexConfigured()) {
     throw new Error(
-      'Yandex GPT не настроен: задайте YANDEX_GPT_API_KEY и YANDEX_GPT_FOLDER_ID в .env',
+      'Yandex GPT не настроен: задайте YANDEX_GPT_API_KEY и gpt:/ в .env',
     );
   }
 }

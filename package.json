@@ -14,7 +14,11 @@
     "slack-stats": "node src/sendSlackStats.js",
     "import": "node src/importJson.js",
     "migrate-supabase": "node src/migrateFromSupabase.js",
-    "check-fraud": "node src/checkFraud.js"
+    "check-fraud": "node src/checkFraud.js",
+    "vk-token": "node src/vkToken.js",
+    "sync-messages-full": "node src/syncMessages.js --full",
+    "sync-messages": "node src/syncMessages.js",
+    "test": "node --test"
   },
   "dependencies": {
     "dotenv": "^16.5.0",

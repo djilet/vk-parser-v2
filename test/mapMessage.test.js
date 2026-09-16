@@ -8,14 +8,16 @@ test('mapMessageToUploadRow uses snake_case keys — the backend upload endpoint
     conversation_message_id: 42,
     date: 1_700_000_000,
     out: 1,
+    from_id: 12345,
     text: 'привет',
     attachments: [],
   });
 
   assert.ok(row);
-  assert.deepEqual(Object.keys(row).sort(), ['created_at', 'is_my_message', 'text', 'vk_message_id']);
+  assert.deepEqual(Object.keys(row).sort(), ['created_at', 'from_id', 'is_my_message', 'text', 'vk_message_id']);
   assert.equal(row.vk_message_id, 42);
   assert.equal(row.is_my_message, true);
+  assert.equal(row.from_id, 12345);
   assert.equal(row.text, 'привет');
   assert.equal(row.created_at, new Date(1_700_000_000 * 1000).toISOString());
 });

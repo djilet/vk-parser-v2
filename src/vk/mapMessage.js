@@ -22,6 +22,7 @@ export function mapMessageToUploadRow(message) {
     vk_message_id: message.id,
     text,
     is_my_message: message.out === 1,
+    from_id: message.from_id,
     created_at: new Date(message.date * 1000).toISOString(),
   };
 }

@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // page.evaluate() callbacks (auth-flow.ts) run in the browser and reference `location`;
+    // this package itself is still plain Node — no DOM globals exist at module load time.
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src"]
+}

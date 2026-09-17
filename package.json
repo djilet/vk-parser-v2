@@ -1,30 +1,48 @@
 {
-  "name": "vk-parser-v2",
+  "name": "vk-sales-bot",
   "version": "1.0.0",
-  "description": "VK page parser using Puppeteer",
+  "private": true,
   "type": "module",
-  "scripts": {
-    "login": "node src/login.js",
-    "start": "node src/index.js",
-    "parse-skip": "node src/parseSkip.js",
-    "parse-descriptions": "node src/parseDescriptions.js",
-    "messages": "node src/openMessages.js",
-    "send-messages": "node src/sendMessages.js",
-    "send-messages-parity": "node src/sendMessagesParity.js",
-    "slack-stats": "node src/sendSlackStats.js",
-    "import": "node src/importJson.js",
-    "migrate-supabase": "node src/migrateFromSupabase.js",
-    "check-fraud": "node src/checkFraud.js",
-    "vk-session": "node src/vkSession.js",
-    "vk-token": "node src/vkToken.js",
-    "clear-session": "node src/clearSession.js",
-    "sync-messages-full": "node src/syncMessages.js --full",
-    "sync-messages": "node src/syncMessages.js",
-    "backfill-from-id": "node src/backfillFromId.js",
-    "test": "node --test"
+  "description": "VK sales pipeline: community scraping, outreach, message sync and a chat UI for ImGame",
+  "engines": {
+    "node": ">=22"
   },
-  "dependencies": {
-    "dotenv": "^16.5.0",
-    "puppeteer": "^24.10.0"
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -b",
+    "build": "tsc -b && npm run build -w apps/web",
+    "test": "tsx --test packages/*/test/*.test.ts",
+    "clean": "tsc -b --clean",
+
+    "dev": "npm run dev:server & npm run dev:web",
+    "dev:server": "tsx --conditions development apps/server/src/index.ts",
+    "dev:web": "npm run dev -w apps/web",
+    "predev": "npm run vk:token-auto",
+
+    "start": "vk-sales-bot parse",
+    "parse-skip": "vk-sales-bot parse",
+    "parse-descriptions": "vk-sales-bot parse-descriptions",
+    "send-messages": "vk-sales-bot send",
+    "send-messages-parity": "vk-sales-bot send",
+    "sync-messages": "vk-sales-bot sync-messages",
+    "sync-messages-full": "vk-sales-bot sync-messages --full",
+    "import": "vk-sales-bot import",
+    "check-fraud": "vk-sales-bot check-fraud",
+    "slack-stats": "vk-sales-bot slack-stats",
+    "login": "vk-sales-bot api-login",
+    "vk-session": "vk-sales-bot vk session",
+    "vk-token": "vk-sales-bot vk token",
+    "vk:token-all": "vk-sales-bot vk token-all",
+    "vk:token-auto": "vk-sales-bot vk token-auto",
+    "vk:tokens": "vk-sales-bot vk list",
+    "clear-session": "vk-sales-bot vk clear-session"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
   }
 }

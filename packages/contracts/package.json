@@ -1,0 +1,14 @@
+{
+  "name": "@vk-sales-bot/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

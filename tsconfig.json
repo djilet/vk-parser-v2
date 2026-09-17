@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/contracts" },
+    { "path": "packages/core" },
+    { "path": "packages/sales-api" },
+    { "path": "packages/chat" },
+    { "path": "packages/parser" },
+    { "path": "apps/cli" },
+    { "path": "apps/server" }
+  ]
+}

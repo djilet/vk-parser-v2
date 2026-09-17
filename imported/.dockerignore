@@ -1,9 +1,0 @@
-node_modules
-web/node_modules
-dist
-web/dist
-.browser-profile-*
-tokens/
-data/
-.git
-.DS_Store

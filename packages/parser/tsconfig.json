@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // page.evaluate() callbacks run in the browser and need DOM types (document, Element, …);
+    // this package itself is still plain Node — no DOM globals exist at module load time.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src"],
+  "references": [{ "path": "../core" }, { "path": "../sales-api" }]
+}

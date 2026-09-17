@@ -15,9 +15,12 @@
     "import": "node src/importJson.js",
     "migrate-supabase": "node src/migrateFromSupabase.js",
     "check-fraud": "node src/checkFraud.js",
+    "vk-session": "node src/vkSession.js",
     "vk-token": "node src/vkToken.js",
+    "clear-session": "node src/clearSession.js",
     "sync-messages-full": "node src/syncMessages.js --full",
     "sync-messages": "node src/syncMessages.js",
+    "backfill-from-id": "node src/backfillFromId.js",
     "test": "node --test"
   },
   "dependencies": {

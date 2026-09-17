@@ -3,6 +3,7 @@ node_modules/
 *.log
 .DS_Store
 chrome-profile/
+chrome-profile-*/
 output/
 sent.json
 .auth-token.json

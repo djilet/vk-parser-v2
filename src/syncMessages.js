@@ -1,7 +1,13 @@
 import { config } from './config.js';
 import { isApiConfigured } from './api/auth.js';
 import { verifyApi } from './export/toApi.js';
-import { uploadAllCommunityMessages, syncCommunityMessages, syncNewMessages } from './sync/messages.js';
+import {
+  uploadAllCommunityMessages,
+  uploadAllAccountConversations,
+  syncAllAccountConversations,
+  syncCommunityMessages,
+  syncNewMessages,
+} from './sync/messages.js';
 
 function ensureConfig() {
   if (!isApiConfigured()) {
@@ -25,7 +31,15 @@ async function main() {
 
   let result;
 
-  if (config.communityId) {
+  if (config.allConversations) {
+    if (config.full) {
+      console.log('Ищу все переписки аккаунта через messages.getConversations (вся история)...');
+      result = await uploadAllAccountConversations({ limit: config.limit });
+    } else {
+      console.log('Ищу все переписки аккаунта через messages.getConversations (только новые сообщения)...');
+      result = await syncAllAccountConversations({ limit: config.limit });
+    }
+  } else if (config.communityId) {
     if (config.full) {
       console.log(`Синхронизирую сообщество ${config.communityId} (вся история)...`);
       result = await uploadAllCommunityMessages({ limit: config.limit, onlyCommunityId: config.communityId });

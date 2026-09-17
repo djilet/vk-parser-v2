@@ -15,6 +15,10 @@ const jsonFile = args.file ?? null;
 const communityRaw = args.community ?? null;
 const communityId = communityRaw == null ? null : Number.parseInt(String(communityRaw), 10);
 const full = Boolean(args.full);
+const allConversations = Boolean(args['all-conversations']);
+
+const browserIdRaw = args.browser ?? process.env.VK_BROWSER ?? null;
+const browserId = Number.parseInt(String(browserIdRaw ?? ''), 10) || 1;
 
 export const config = {
   /** Страница входа VK */
@@ -49,6 +53,13 @@ export const config = {
   /** --full для syncMessages: полная заливка истории вместо до-синхронизации новых */
   full,
 
+  /**
+   * --all-conversations для syncMessages: вместо журнала отправок список сообществ берём
+   * из messages.getConversations текущего аккаунта — так находятся и те переписки, которых
+   * ещё нет в sales_community_messages_sent.
+   */
+  allConversations,
+
   /** false — видимый браузер, true — headless */
   headless: process.env.HEADLESS === 'true',
 
@@ -58,8 +69,13 @@ export const config = {
    */
   connectUrl: process.env.CONNECT_URL ?? null,
 
-  /** Профиль браузера (для сохранения сессии VK) */
-  userDataDir: process.env.USER_DATA_DIR ?? './chrome-profile',
+  /**
+   * Профиль браузера (для сохранения сессии VK) — свой на каждый browserId, чтобы несколько
+   * VK-аккаунтов не делили одну и ту же сессию/куки. Браузер #1 намеренно оставлен на
+   * './chrome-profile' (старый путь) — так уже залогиненные пользователи не потеряют сессию.
+   */
+  userDataDir: process.env.USER_DATA_DIR
+    ?? (browserId === 1 ? './chrome-profile' : `./chrome-profile-${browserId}`),
 
   api: {
     /** Корень PHP API, включая префикс /api */
@@ -95,8 +111,8 @@ export const config = {
   },
 
   vk: {
-    /** Номер браузера/аккаунта VK (1 или 2) — свой токен и профиль Chrome на каждый */
-    browserId: Number.parseInt(process.env.VK_BROWSER ?? '', 10) || 1,
+    /** Номер браузера/аккаунта VK — свой токен и профиль Chrome на каждый. --browser <n> или VK_BROWSER=<n> */
+    browserId,
 
     /** Таймаут одного запроса к api.vk.com, мс — прогон идёт часами, зависший запрос не должен его вешать */
     requestTimeoutMs: Number.parseInt(process.env.VK_REQUEST_TIMEOUT_MS ?? '', 10) || 30_000,

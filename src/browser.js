@@ -1,21 +1,5 @@
-import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer';
 import { config } from './config.js';
-
-const DEFAULT_CHROME_PATHS = {
-  darwin: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  linux: '/usr/bin/google-chrome',
-  win32: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-};
-
-function resolveChromePath() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
-
-  const defaultPath = DEFAULT_CHROME_PATHS[process.platform];
-  if (defaultPath && existsSync(defaultPath)) return defaultPath;
-
-  return undefined;
-}
 
 /**
  * @returns {Promise<import('puppeteer').Browser>}
@@ -29,7 +13,13 @@ export async function launchBrowser() {
     });
   }
 
-  const executablePath = resolveChromePath();
+  // CHROME_PATH — не установлен по умолчанию нарочно: реальный установленный Google Chrome
+  // имеет тот же bundle id, что и обычный Chrome пользователя, и при уже запущенном обычном
+  // Chrome macOS вместо нового процесса шлёт Apple Event существующему инстансу и тут же
+  // завершает наш процесс — окно не открывается, а page.goto падает с
+  // net::ERR_SOCKET_NOT_CONNECTED, т.к. CDP-порт умирает на полпути. Без явного пути puppeteer
+  // использует свой bundled Chrome for Testing, который с обычным Chrome не конфликтует.
+  const executablePath = process.env.CHROME_PATH;
   console.log(executablePath ? `Запуск Chrome: ${executablePath}` : 'Запуск bundled Chrome...');
 
   return puppeteer.launch({

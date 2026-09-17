@@ -22,6 +22,11 @@ export function iterateCommunityMessages(communityId) {
   return apiIterate(`/admin/sales/communities/${communityId}/messages`);
 }
 
+/** Частичное обновление одного сообщения (например, простановка from_id задним числом). */
+export function updateMessage(id, payload) {
+  return apiRequest('PUT', `${MESSAGES_PATH}/${id}`, { body: payload });
+}
+
 export function countMessages(query = {}) {
   return apiCount(MESSAGES_PATH, query);
 }

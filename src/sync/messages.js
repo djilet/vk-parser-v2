@@ -1,13 +1,15 @@
 import { config } from '../config.js';
 import { getAccessToken } from '../vk/tokenStore.js';
-import { getHistory, VkApiError, AUTH_FAILED_CODE } from '../vk/api.js';
+import { getHistory, getConversations, getUsers, VkApiError, AUTH_FAILED_CODE } from '../vk/api.js';
 import { mapMessageToUploadRow } from '../vk/mapMessage.js';
 import { fetchSyncState, uploadMessages } from '../api/salesMessages.js';
 import { iterateMessagesSent } from '../api/salesCommunityMessagesSent.js';
+import { findCommunityByPeerId, createCommunity } from '../api/salesCommunities.js';
 
 const HISTORY_PAGE_SIZE = 200; // максимум, который отдаёт messages.getHistory за один вызов
 const UPLOAD_CHUNK_SIZE = 500; // лимит на items одного /messages/upload (как и у остальных батчей бэкенда)
 const MAX_MESSAGES_PER_COMMUNITY = 10_000; // страховка от аномально длинной истории/бага пагинации
+const CONVERSATIONS_PAGE_SIZE = 200; // максимум, который отдаёт messages.getConversations за один вызов
 
 /** Заливает накопленные строки, разбивая на куски по UPLOAD_CHUNK_SIZE. Возвращает inserted. */
 async function flush(communityId, rows) {
@@ -110,8 +112,8 @@ async function loadCommunitiesFromSentLog() {
  * Исключение — истёкший/невалидный токен (VkApiError code 5): дальше всё равно ничего не
  * скачается, поэтому прогон останавливается целиком с понятной подсказкой.
  */
-async function runOverCommunities(communities, { limit } = {}) {
-  const accessToken = await getAccessToken(config.vk.browserId);
+async function runOverCommunities(communities, { limit, accessToken } = {}) {
+  accessToken ??= await getAccessToken(config.vk.browserId);
   const total = limit ? Math.min(limit, communities.length) : communities.length;
 
   let processed = 0;
@@ -170,6 +172,147 @@ async function buildCommunityList({ withWatermarks }) {
     peerId,
     sinceVkMessageId: watermarkByCommunity.get(communityId) ?? null,
   }));
+}
+
+/**
+ * У бэкенда нет отдельной сущности для диалога с человеком (только communities), поэтому для
+ * peer.type === 'user' карточка сообщества исполняет роль карточки контакта: создаём её на лету
+ * по данным users.get, если такой карточки для этого peer_id ещё нет.
+ */
+async function ensurePersonCommunity(accessToken, peerId) {
+  const existing = await findCommunityByPeerId(peerId);
+  if (existing) {
+    return existing.id;
+  }
+
+  const [user] = await getUsers(accessToken, [peerId], 'screen_name');
+  if (!user) {
+    console.log(`Диалог с peer_id=${peerId} пропущен — users.get не вернул пользователя`);
+    return null;
+  }
+
+  const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || null;
+  const payload = {
+    url: `https://vk.com/${user.screen_name ?? `id${peerId}`}`,
+    name,
+    msg_url: `https://vk.com/im/convo/${peerId}`,
+    peer_id: peerId,
+  };
+
+  try {
+    const created = await createCommunity(payload);
+    console.log(`Создана карточка для «${name ?? payload.url}» (id=${created.id})`);
+    return created.id;
+  } catch (err) {
+    console.error(`Не удалось создать карточку для peer_id=${peerId}: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Список всех переписок аккаунта — с сообществами и с людьми — постранично через
+ * messages.getConversations. В отличие от buildCommunityList, не зависит от журнала отправок
+ * и находит переписки, в которые скрипт ещё никогда не писал.
+ *
+ * peer.type === 'group' — диалог с сообществом: его peer.id — тот же peer_id, что бэкенд хранит
+ * в карточке сообщества (communities.peer_id), поэтому community_id резолвится через
+ * findCommunityByPeerId, а не вычисляется из VK id (это разные id); сообщества без карточки на
+ * бэкенде пропускаются, а не создаются — карточку сообщества скрипт сам не заводит.
+ *
+ * peer.type === 'user' — диалог с человеком, не с сообществом: карточки для него на бэкенде
+ * никогда не будет сама по себе, поэтому она создаётся автоматически (см. ensurePersonCommunity).
+ *
+ * withWatermarks=true подмешивает водяные знаки из /messages/sync-state (та же логика, что и в
+ * buildCommunityList) — тогда syncOne останавливается на уже залитом сообщении вместо того,
+ * чтобы каждый раз перекачивать всю историю диалога заново.
+ */
+async function loadCommunityConversationPeers(accessToken, { withWatermarks } = {}) {
+  const groupPeers = [];
+  const userPeers = [];
+  let offset = 0;
+
+  for (;;) {
+    const page = await getConversations(accessToken, CONVERSATIONS_PAGE_SIZE, offset);
+    const items = page.items ?? [];
+
+    if (items.length === 0) {
+      break;
+    }
+
+    for (const item of items) {
+      const peer = item.conversation?.peer;
+      if (peer?.type === 'group') {
+        groupPeers.push(peer.id);
+      } else if (peer?.type === 'user') {
+        userPeers.push(peer.id);
+      }
+    }
+
+    if (items.length < CONVERSATIONS_PAGE_SIZE) {
+      break;
+    }
+
+    offset += items.length;
+  }
+
+  const watermarkByCommunity = withWatermarks
+    ? await fetchSyncState().then(({ items }) => new Map(items.map((row) => [row.community_id, row.last_vk_message_id])))
+    : new Map();
+
+  const communities = [];
+
+  for (const peerId of groupPeers) {
+    const community = await findCommunityByPeerId(peerId);
+
+    if (!community) {
+      console.log(`Переписка с peer_id=${peerId} пропущена — нет карточки сообщества на бэкенде`);
+      continue;
+    }
+
+    communities.push({
+      communityId: community.id,
+      peerId,
+      sinceVkMessageId: watermarkByCommunity.get(community.id) ?? null,
+    });
+  }
+
+  for (const peerId of userPeers) {
+    const communityId = await ensurePersonCommunity(accessToken, peerId);
+
+    if (communityId != null) {
+      communities.push({
+        communityId,
+        peerId,
+        sinceVkMessageId: watermarkByCommunity.get(communityId) ?? null,
+      });
+    }
+  }
+
+  return communities;
+}
+
+/**
+ * Полная заливка по всем перепискам аккаунта — с сообществами и с людьми, а не только по тем,
+ * что уже попали в журнал отправок (см. loadCommunityConversationPeers). Водяные знаки
+ * игнорируются: качается вся история каждого диалога заново. Для `--all-conversations --full`.
+ */
+export async function uploadAllAccountConversations({ limit } = {}) {
+  const accessToken = await getAccessToken(config.vk.browserId);
+  const communities = await loadCommunityConversationPeers(accessToken, { withWatermarks: false });
+
+  return runOverCommunities(communities, { limit, accessToken });
+}
+
+/**
+ * До-синхронизация по всем перепискам аккаунта: как uploadAllAccountConversations, но с
+ * водяными знаками — тянется только то, что новее уже залитого. Для `--all-conversations`
+ * без `--full`.
+ */
+export async function syncAllAccountConversations({ limit } = {}) {
+  const accessToken = await getAccessToken(config.vk.browserId);
+  const communities = await loadCommunityConversationPeers(accessToken, { withWatermarks: true });
+
+  return runOverCommunities(communities, { limit, accessToken });
 }
 
 /**

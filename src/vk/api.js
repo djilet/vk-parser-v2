@@ -112,12 +112,26 @@ export function getHistory(accessToken, peerId, count, offset, startCmid) {
   });
 }
 
-export function getUsers(accessToken, userIds) {
+/**
+ * Список диалогов аккаунта постранично (макс. count=200 за вызов) — используется, когда
+ * нужно найти вообще все переписки с сообществами, а не только уже известные из журнала
+ * отправок (см. uploadAllAccountConversations в sync/messages.js).
+ */
+export function getConversations(accessToken, count, offset) {
+  return vkRequest('messages.getConversations', accessToken, {
+    count,
+    offset,
+    filter: 'all',
+    extended: 0,
+  });
+}
+
+export function getUsers(accessToken, userIds, fields) {
   if (userIds.length === 0) {
     return Promise.resolve([]);
   }
 
-  return vkRequest('users.get', accessToken, { user_ids: userIds.join(',') });
+  return vkRequest('users.get', accessToken, { user_ids: userIds.join(','), fields });
 }
 
 export async function isAccessTokenValid(accessToken, userId) {

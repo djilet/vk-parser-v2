@@ -1,4 +1,7 @@
-import type { Browser, Frame, Page } from 'puppeteer';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { Browser, ElementHandle, Frame, Page } from 'puppeteer';
 import { extractTokenFromUrl } from '../token/store.js';
 
 export const VK_COM_APP_ID = 6287487;
@@ -24,10 +27,9 @@ export async function waitForOAuthPage(browser: Browser, timeoutMs = 30_000): Pr
   while (Date.now() < deadline) {
     for (const page of await browser.pages()) {
       const url = page.url();
-      if (url.includes('oauth.vk.com') || url.includes('id.vk.com') || url.includes('vk.com')) {
-        if (!url.includes('vkhost.github.io')) {
-          return page;
-        }
+      if (/(^|\.)(oauth\.vk\.(com|ru)|id\.vk\.(com|ru)|vk\.(com|ru))/.test(url.replace(/^https?:\/\//, ''))
+        && !url.includes('vkhost.github.io')) {
+        return page;
       }
     }
     await new Promise((r) => setTimeout(r, 300));
@@ -36,7 +38,22 @@ export async function waitForOAuthPage(browser: Browser, timeoutMs = 30_000): Pr
   throw new Error('Страница авторизации VK не открылась');
 }
 
-export async function clickContinueAs(page: Page): Promise<void> {
+const CONTINUE_BUTTON_SELECTOR = 'button[data-test-id="continue-as-button"]';
+
+/** Ищет кнопку не только в главном фрейме страницы, но и во всех вложенных (VK ID иногда рендерит виджет входа в iframe). */
+async function findContinueButtonHandle(page: Page): Promise<ElementHandle<Element> | null> {
+  for (const frame of page.frames()) {
+    try {
+      const handle = await frame.$(CONTINUE_BUTTON_SELECTOR);
+      if (handle) return handle;
+    } catch {
+      // фрейм мог отсоединиться между page.frames() и $()
+    }
+  }
+  return null;
+}
+
+export async function clickContinueAs(page: Page, timeoutMs = 60_000): Promise<void> {
   const href = await getPageHref(page);
   if (href && extractTokenFromUrl(href)) {
     return;
@@ -44,13 +61,30 @@ export async function clickContinueAs(page: Page): Promise<void> {
 
   console.log('Жду кнопку «Продолжить как …»...');
 
-  const continueButton = await page.waitForSelector('button[data-test-id="continue-as-button"]', {
-    timeout: 60_000,
-    visible: true,
-  });
+  const deadline = Date.now() + timeoutMs;
+  let continueButton: ElementHandle<Element> | null = null;
+
+  while (Date.now() < deadline) {
+    continueButton = await findContinueButtonHandle(page);
+    if (continueButton) break;
+    await new Promise((r) => setTimeout(r, 300));
+  }
 
   if (!continueButton) {
-    throw new Error('Кнопка «Продолжить как …» не найдена');
+    const debugPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'debug-vk-auth');
+    await mkdir(debugPath, { recursive: true }).catch(() => {});
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+    await page.screenshot({ path: resolve(debugPath, `${stamp}.png`) as `${string}.png`, fullPage: true }).catch(() => {});
+    const html = await page.content().catch(() => null);
+    if (html) {
+      await writeFile(resolve(debugPath, `${stamp}.html`), html, 'utf8').catch(() => {});
+    }
+
+    throw new Error(
+      `Кнопка «Продолжить как …» не найдена (искали ${timeoutMs}мс на странице ${page.url()}). `
+      + `Скриншот и HTML сохранены в debug-vk-auth/${stamp}.*`
+    );
   }
 
   console.log('Нажимаю «Продолжить как …»...');

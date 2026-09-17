@@ -61,7 +61,12 @@ function launchOptions(options: LaunchOptions, debugPort: number) {
     userDataDir: options.paths.browserProfile,
     defaultViewport: null,
     args: ['--start-maximized', `--remote-debugging-port=${debugPort}`, '--no-sandbox', '--disable-setuid-sandbox'],
-    ...(executablePath ? { executablePath } : { channel: 'chrome' as const }),
+    // Пакетный Chrome for Testing по умолчанию: реальный установленный Google Chrome
+    // (channel: 'chrome') — это тот же bundle id, что у обычного Chrome пользователя,
+    // и при уже запущенном обычном Chrome macOS вместо нового процесса шлёт Apple Event
+    // существующему инстансу и тут же завершает наш процесс — окно не открывается, а
+    // page.goto падает с net::ERR_SOCKET_NOT_CONNECTED, т.к. CDP-порт умирает на полпути.
+    ...(executablePath ? { executablePath } : {}),
   };
 }
 
